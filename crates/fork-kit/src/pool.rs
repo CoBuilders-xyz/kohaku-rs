@@ -5,7 +5,7 @@ use alloy::{
     providers::{DynProvider, Provider},
     sol,
 };
-use kohaku_tornadocash::provider::pool::{Asset, Pool};
+use kohaku_tornadocash::pool::{Asset, Pool};
 
 sol!(
     #[sol(rpc)]

@@ -4,7 +4,7 @@ use alloy::primitives::Address;
 use ruint::aliases::U256;
 use thiserror::Error;
 
-use crate::provider::pool::Pool;
+use crate::pool::Pool;
 
 /// Generic verifier interface.
 #[async_trait::async_trait]

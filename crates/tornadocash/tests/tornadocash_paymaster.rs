@@ -11,7 +11,7 @@ use kohaku_fork_kit::{
     pool::deploy_pool,
     simple_account::deploy_simple_account,
 };
-use kohaku_kv_store::memory::MemoryStore;
+use kohaku_kv_store::Store;
 use kohaku_tornadocash::{
     circuit::Circuit, indexer::rpc::RpcSyncer, provider::tornado_provider::TornadoProvider,
     userop_provider::TornadoPaymasterExt,
@@ -61,12 +61,12 @@ async fn test_tornadocash_paymaster() -> Result<(), anyhow::Error> {
     pool.paymaster_address = Some(paymaster_address);
     pool.adapter_address = Some(adapter_address);
 
-    let store = MemoryStore::new();
+    let store = Store::create();
     let syncer = RpcSyncer::new(provider.clone()).with_batch_size(10_000);
     let circuit = Circuit::from_remote().await?;
     let mut tornado_provider = TornadoProvider::new(
+        store,
         provider.clone(),
-        store.into(),
         syncer.clone().into(),
         syncer.clone().into(),
         circuit,

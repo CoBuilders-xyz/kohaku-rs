@@ -9,11 +9,12 @@ Rust [Tornadocash](https://tornadocash.eth.limo/) client library, designed to in
 
 ```rust,no_run
 use alloy::providers::{Provider, ProviderBuilder};
-use kohaku_kv_store::memory::MemoryStore;
+use kohaku_kv_store::Store;
 use kohaku_tornadocash::{
     circuit::Circuit,
     indexer::rpc::RpcSyncer,
-    provider::{pool::Pool, pool_provider::PoolProvider},
+    pool::Pool,
+    provider::{pool_provider::PoolProvider},
 };
 
 #[tokio::main]
@@ -22,15 +23,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .connect_http("http://localhost:8545".parse()?)
         .erased();
 
-    let store = MemoryStore::new();
+    let store = Store::create();
     let syncer = RpcSyncer::new(provider.clone());
     let circuit = Circuit::from_remote().await?;
     let pool = Pool::SEPOLIA_ETHER_01;
 
     let mut pool_provider = PoolProvider::new(
         pool,
+        store,
         provider,
-        store.into(),
         syncer.clone().into(),
         syncer.into(),
         circuit,

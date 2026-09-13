@@ -10,11 +10,9 @@ use kohaku_userop_kit::{
 
 use crate::{
     abis::tornado::Tornado,
-    provider::{
-        note::Note,
-        pool::Pool,
-        tornado_provider::{TornadoProvider, TornadoProviderError},
-    },
+    note::Note,
+    pool::Pool,
+    provider::tornado_provider::{TornadoProvider, TornadoProviderError},
 };
 
 const FEE_BUFFER_BPS: u128 = 100; // 1% buffer

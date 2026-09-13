@@ -5,7 +5,7 @@ use alloy::{
     signers::local::PrivateKeySigner,
 };
 use kohaku_fork_kit::pool::deploy_pool;
-use kohaku_kv_store::memory::MemoryStore;
+use kohaku_kv_store::Store;
 use kohaku_tornadocash::{
     circuit::Circuit, indexer::rpc::RpcSyncer, provider::pool_provider::PoolProvider,
 };
@@ -22,13 +22,13 @@ async fn test_pool_provider() -> Result<(), anyhow::Error> {
     let provider = ProviderBuilder::new().connect_anvil_with_wallet().erased();
     let pool = deploy_pool(provider.clone()).await?;
 
-    let store = MemoryStore::new();
+    let store = Store::create();
     let syncer = RpcSyncer::new(provider.clone()).with_batch_size(10_000);
     let circuit = Circuit::from_remote().await?;
     let mut pool_provider = PoolProvider::new(
         pool,
+        store,
         provider.clone(),
-        store.into(),
         syncer.clone().into(),
         syncer.clone().into(),
         circuit,
@@ -86,13 +86,13 @@ async fn test_pool_provider_reorg_recovery() -> Result<(), anyhow::Error> {
         .erased();
     let pool = deploy_pool(provider.clone()).await?;
 
-    let store = MemoryStore::new();
+    let store = Store::create();
     let syncer = RpcSyncer::new(provider.clone()).with_batch_size(10_000);
     let circuit = Circuit::from_remote().await?;
     let mut pool_provider = PoolProvider::new(
         pool,
+        store,
         provider.clone(),
-        store.into(),
         syncer.clone().into(),
         syncer.clone().into(),
         circuit,

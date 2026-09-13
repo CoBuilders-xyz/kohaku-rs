@@ -7,7 +7,7 @@ use tracing::info;
 use crate::{
     abis::tornado::Tornado::{Deposit, Withdrawal},
     indexer::syncer::{SyncEvent, SyncerBackend, SyncerError},
-    provider::pool::Pool,
+    pool::Pool,
 };
 
 /// A syncer that reads from a remote database of cached data.

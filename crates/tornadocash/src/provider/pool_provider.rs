@@ -17,11 +17,9 @@ use crate::{
     circuit::{Circuit, input::CircuitInputs},
     indexer::{Indexer, IndexerError, syncer::Syncer, verifier::Verifier},
     merkle_tree::TcMerkleTree,
-    provider::{
-        call::Call,
-        note::Note,
-        pool::{Asset, Pool},
-    },
+    note::Note,
+    pool::{Asset, Pool},
+    provider::call::Call,
 };
 
 /// A provider for a single tornadocash pool.
@@ -36,10 +34,8 @@ pub struct PoolProvider {
 
 #[derive(Debug, thiserror::Error)]
 pub enum PoolProviderError {
-    #[error("Invalid amount for pool: {0} != {1}")]
-    InvalidAmount(String, String),
-    #[error("Invalid symbol for pool: {0} != {1}")]
-    InvalidSymbol(String, String),
+    #[error("Different pool: (chain_id, symbol, amount)({0}, {1}, {2}) != ({3}, {4}, {5})")]
+    DifferentPool(u64, String, String, u64, String, String),
     #[error("Indexer error: {0}")]
     Indexer(#[from] IndexerError),
     #[error("Merkle proof generation error: {0}")]
@@ -63,8 +59,8 @@ impl PoolProvider {
     )]
     pub fn new(
         pool: Pool,
-        provider: DynProvider,
         store: Store,
+        provider: DynProvider,
         syncer: Syncer,
         verifier: Verifier,
         circuit: Circuit,
@@ -115,17 +111,8 @@ impl PoolProvider {
     /// Create a deposit transaction and note for this pool.
     #[tracing::instrument(skip_all)]
     pub fn deposit(&self, rng: &mut impl CryptoRng) -> (Call, Note) {
-        let note = Note::random(
-            &self.pool().symbol(),
-            &self.pool().amount(),
-            self.pool().chain_id,
-            rng,
-        );
-
-        let calldata = Tornado::depositCall {
-            _commitment: note.commitment().into(),
-        }
-        .abi_encode();
+        let (deposit_call, note) = self.deposit_call(rng);
+        let calldata = deposit_call.abi_encode();
         let value = match self.pool().asset {
             Asset::Native { .. } => self.pool().amount_wei,
             Asset::Erc20 { .. } => 0,
@@ -133,6 +120,23 @@ impl PoolProvider {
 
         let tx_data = Call::new(self.pool().address, calldata.into(), U256::from(value));
         (tx_data, note)
+    }
+
+    /// Create the deposit calldata and note for this pool.
+    #[tracing::instrument(skip_all)]
+    pub fn deposit_call(&self, rng: &mut impl CryptoRng) -> (Tornado::depositCall, Note) {
+        let note = Note::random(
+            &self.pool().symbol(),
+            &self.pool().amount(),
+            self.pool().chain_id,
+            rng,
+        );
+
+        let call = Tornado::depositCall {
+            _commitment: note.commitment().into(),
+        };
+
+        (call, note)
     }
 
     /// Create a withdrawal transaction for the given note to the recipient
@@ -175,17 +179,17 @@ impl PoolProvider {
         refund: Option<U256>,
         mut rng: &mut impl CryptoRng,
     ) -> Result<Tornado::withdrawCall, PoolProviderError> {
-        if note.amount != self.pool().amount() {
-            return Err(PoolProviderError::InvalidAmount(
-                note.amount.clone(),
-                self.pool().amount(),
-            ));
-        }
-
-        if note.symbol != self.pool().symbol() {
-            return Err(PoolProviderError::InvalidSymbol(
+        if note.chain_id != self.pool().chain_id
+            || note.symbol != self.pool().symbol()
+            || note.amount != self.pool().amount()
+        {
+            return Err(PoolProviderError::DifferentPool(
+                note.chain_id,
                 note.symbol.clone(),
+                note.amount.clone(),
+                self.pool().chain_id,
                 self.pool().symbol(),
+                self.pool().amount(),
             ));
         }
 

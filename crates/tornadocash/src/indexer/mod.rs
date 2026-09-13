@@ -9,7 +9,7 @@ use crate::{
         verifier::{Verifier, VerifierError},
     },
     merkle_tree::TcMerkleTree,
-    provider::pool::Pool,
+    pool::Pool,
 };
 
 pub mod chained;

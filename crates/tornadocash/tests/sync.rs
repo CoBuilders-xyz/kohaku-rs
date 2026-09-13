@@ -1,6 +1,6 @@
 use alloy::providers::{Provider, ProviderBuilder};
 use kohaku_fork_kit::pool::deploy_pool;
-use kohaku_kv_store::memory::MemoryStore;
+use kohaku_kv_store::Store;
 use kohaku_tornadocash::{
     circuit::Circuit, indexer::rpc::RpcSyncer, provider::pool_provider::PoolProvider,
 };
@@ -18,13 +18,13 @@ async fn test_sync() -> Result<(), anyhow::Error> {
     let provider = ProviderBuilder::new().connect_anvil_with_wallet().erased();
     let pool = deploy_pool(provider.clone()).await?;
 
-    let store = MemoryStore::new();
+    let store = Store::create();
     let syncer = RpcSyncer::new(provider.clone());
     let circuit = Circuit::from_remote().await?;
     let mut pool_provider = PoolProvider::new(
         pool,
+        store,
         provider.clone(),
-        store.into(),
         syncer.clone().into(),
         syncer.clone().into(),
         circuit,

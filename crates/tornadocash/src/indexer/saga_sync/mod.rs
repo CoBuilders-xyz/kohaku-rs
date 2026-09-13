@@ -7,7 +7,7 @@ use self::{
 };
 use crate::{
     indexer::syncer::{SyncEvent, SyncerBackend, SyncerError},
-    provider::pool::Pool,
+    pool::Pool,
 };
 
 mod decode;

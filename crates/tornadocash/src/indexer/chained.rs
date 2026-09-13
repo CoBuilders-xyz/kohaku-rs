@@ -2,7 +2,7 @@ use tracing::info;
 
 use crate::{
     indexer::syncer::{SyncEvent, Syncer, SyncerBackend, SyncerError},
-    provider::pool::Pool,
+    pool::Pool,
 };
 
 /// Helper syncer that chains multiple UTXO syncers together.

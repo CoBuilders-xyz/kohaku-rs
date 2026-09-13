@@ -19,7 +19,7 @@ use crate::{
         syncer::{SyncEvent, SyncerBackend, SyncerError},
         verifier::{VerifierBackend, VerifierError},
     },
-    provider::pool::Pool,
+    pool::Pool,
 };
 
 /// A syncer and verifier that reads from an Ethereum JSON-RPC provider

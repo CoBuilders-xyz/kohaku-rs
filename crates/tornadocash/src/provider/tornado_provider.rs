@@ -8,10 +8,10 @@ use crate::{
     abis::tornado::Tornado,
     circuit::Circuit,
     indexer::{syncer::Syncer, verifier::Verifier},
+    note::Note,
+    pool::Pool,
     provider::{
         call::Call,
-        note::Note,
-        pool::Pool,
         pool_provider::{PoolProvider, PoolProviderError},
     },
 };
@@ -21,8 +21,8 @@ use crate::{
 /// The provider manages multiple `PoolProvider`s for requested pools, providing a unified
 /// interface.
 pub struct TornadoProvider {
-    provider: DynProvider,
     store: Store,
+    provider: DynProvider,
     syncer: Syncer,
     verifier: Verifier,
     pools: Vec<PoolProvider>,
@@ -42,15 +42,15 @@ pub enum TornadoProviderError {
 impl TornadoProvider {
     #[must_use]
     pub fn new(
-        provider: DynProvider,
         store: Store,
+        provider: DynProvider,
         syncer: Syncer,
         verifier: Verifier,
         circuit: Circuit,
     ) -> Self {
         Self {
-            provider,
             store,
+            provider,
             syncer,
             verifier,
             pools: Vec::new(),
@@ -67,8 +67,8 @@ impl TornadoProvider {
         let scoped_store = self.store.scope(pool.id());
         let provider = PoolProvider::new(
             pool,
-            self.provider.clone(),
             scoped_store,
+            self.provider.clone(),
             self.syncer.clone(),
             self.verifier.clone(),
             self.circuit.clone(),

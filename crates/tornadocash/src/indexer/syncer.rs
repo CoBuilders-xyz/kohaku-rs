@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{
     abis::tornado::Tornado::{Deposit, Withdrawal},
-    provider::pool::Pool,
+    pool::Pool,
 };
 
 /// Generic syncer interface.

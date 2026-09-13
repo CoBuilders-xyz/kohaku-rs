@@ -30,6 +30,11 @@ impl Store {
         }
     }
 
+    /// Creates a new store with an in-memory backend.
+    pub fn create() -> Self {
+        Self::new(memory::MemoryStore::new())
+    }
+
     /// Returns a [`Store`] narrowed to the given namespace, sharing the same
     /// underlying backend.
     ///

@@ -5,6 +5,8 @@ pub mod circuit;
 mod crypto;
 pub mod indexer;
 mod merkle_tree;
+pub mod note;
+pub mod pool;
 pub mod provider;
 
 #[cfg(feature = "paymaster")]

@@ -6,7 +6,7 @@ use kohaku_tornadocash::{
         remote::RemoteSyncer,
         syncer::{SyncEvent, SyncerBackend},
     },
-    provider::pool::Pool,
+    pool::Pool,
 };
 
 const REMOTE_SYNC_BASE_URL: &str = "https://raw.githubusercontent.com/Robert-MacWha/privacy-protocols/refs/heads/sync-state/tornadocash-sync";

@@ -3,7 +3,7 @@ use std::fmt::Display;
 use alloy::primitives::{Address, address};
 use serde::{Deserialize, Serialize};
 
-use crate::provider::note::Note;
+use crate::note::Note;
 
 /// Represents an asset in a tornadocash pool. Assets can either be native (e.g. ETH, MATIC) or
 /// ERC20 tokens.
