@@ -1,0 +1,15 @@
+[package]
+name = "kohaku-rpc-wasm-lab"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+kohaku-tornadocash = { path = "../../crates/tornadocash" }
+alloy = { version = "=2.4.1", features = ["providers", "reqwest", "sol-types"] }
+wasm-bindgen = "=0.2.108"
+wasm-bindgen-futures = "=0.4.58"
+serde_json = "=1.0.151"

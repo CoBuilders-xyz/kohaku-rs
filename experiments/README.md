@@ -62,3 +62,10 @@ a Rust library artifact, not yet a JavaScript-callable adapter.
 The [note adapter](note-wasm/README.md) adds a generated JS/WASM boundary and
 native fixture comparison. Run `bash experiments/note-wasm/run.sh`. It uses
 current upstream's `note::Note` path rather than the historical provider path.
+
+## Lab 11: RPC runtime boundary
+
+The [RPC adapter](rpc-wasm/README.md) first records the runtime clock failure on
+`lab/11-rpc-baseline`. Its succeeding timer branch keeps the same fixture
+assertions and selects a WASM-compatible sleep. The baseline uses current
+`pool::{Asset, Pool}` imports and does not add another SDK patch.
