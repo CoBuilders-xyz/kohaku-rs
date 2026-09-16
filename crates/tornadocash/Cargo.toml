@@ -27,6 +27,7 @@ ark-ff = { workspace = true }
 async-trait = { workspace = true }
 brotli = { workspace = true }
 flate2 = { workspace = true, optional = true }
+getrandom = { version = "=0.2.17", features = ["js"] }
 hex = { workspace = true }
 postcard = { workspace = true }
 rand = { workspace = true }
