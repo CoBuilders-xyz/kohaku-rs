@@ -28,3 +28,17 @@ bash experiments/compile-wasm/run.sh getrandom
 Exit criterion: both compiler passes fail at Mio, with the getrandom platform
 guard absent. The runner exits successfully only for the expected outcome.
 Logs are in `target/lab-logs/`. Later branches add further adaptations.
+
+## Lab 08: target-specific Tokio features
+
+Keep `time` available to the library and restrict `process`/`rt-multi-thread`
+to non-WASM targets. Native behavior is retained; this is not a replacement
+for every Tokio runtime operation on WASM.
+
+```sh
+bash experiments/compile-wasm/run.sh tokio
+```
+
+Exit criterion: both passes reach the SDK and fail on non-Send async futures.
+This branch replays the target-split variant; the historical process-only
+variant and its explanation remain in the original Lab 08.
