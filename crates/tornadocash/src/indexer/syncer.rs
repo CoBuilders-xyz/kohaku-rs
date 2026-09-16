@@ -8,7 +8,8 @@ use crate::{
 };
 
 /// Generic syncer interface.
-#[async_trait::async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 pub trait SyncerBackend: Send + Sync {
     /// See [`Syncer::latest_block`].
     async fn latest_block(&self, pool: &Pool) -> Result<u64, SyncerError>;

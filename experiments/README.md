@@ -42,3 +42,17 @@ bash experiments/compile-wasm/run.sh tokio
 Exit criterion: both passes reach the SDK and fail on non-Send async futures.
 This branch replays the target-split variant; the historical process-only
 variant and its explanation remain in the original Lab 08.
+
+## Lab 09: local futures on WASM
+
+Use `async_trait(?Send)` on wasm32 for the two backend traits and their five
+implementations. Native async futures still require Send, and explicit trait
+Send/Sync bounds are unchanged. This is a target-specific compile-time contract,
+not a promise that every runtime operation works in JavaScript.
+
+```sh
+bash experiments/compile-wasm/run.sh futures
+```
+
+Exit criterion: locked WASM library check and build succeed. The product is
+a Rust library artifact, not yet a JavaScript-callable adapter.
