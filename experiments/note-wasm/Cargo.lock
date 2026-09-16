@@ -2881,6 +2881,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "wasmtimer",
  "websnark-rs",
 ]
 

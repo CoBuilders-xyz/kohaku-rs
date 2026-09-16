@@ -3,7 +3,7 @@ set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 lab_dir="$PWD"
 repo_dir=$(git rev-parse --show-toplevel)
-mode="${1:-baseline}"
+mode="${1:-adapted}"
 if [[ $# -gt 1 ]]; then printf 'Expected at most one mode.\n' >&2; exit 2; fi
 case "$mode" in
     baseline|adapted|native-tests) ;;

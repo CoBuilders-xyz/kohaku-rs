@@ -7,8 +7,11 @@ use alloy::{
     rpc::types::{Filter, Log, TransactionRequest},
     sol_types::{SolCall, SolEvent},
 };
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
 use tracing::{info, warn};
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::sleep;
 
 use crate::{
     abis::tornado::{

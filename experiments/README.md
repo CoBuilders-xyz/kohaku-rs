@@ -3,6 +3,7 @@
 These local branches replay the experiments from `lwa-kohaku` on upstream
 `master` at `fb071b3162459be9a5cf9f71ee1ec40a32b76f82` (checked 2026-09-15).
 They are research experiments, not a complete solution to upstream issue #7.
+See [executed results and limits](RESULTS.md) on the final timer branch.
 Historical lab results at `00d69fa583aeba5b68b5828542557ffdeb8f994d` remain in
 the learning repository; do not attribute those results to the new revision.
 
@@ -11,6 +12,10 @@ runners log real commands, disable dev debug info/incremental artifacts to
 reduce disk use, and keep generated bindings under each experiment's ignored
 `output/`. They never reset source files, switch branches, or push changes.
 Builds may download Cargo dependencies. Runtime fixtures use no funds.
+
+All work is local to the organization fork. The original upstream is a read-only
+reference; its local push URL was disabled. Do not push or contact maintainers
+without an explicit user instruction.
 
 ## Lab 07: entropy backend
 
@@ -69,3 +74,9 @@ The [RPC adapter](rpc-wasm/README.md) first records the runtime clock failure on
 `lab/11-rpc-baseline`. Its succeeding timer branch keeps the same fixture
 assertions and selects a WASM-compatible sleep. The baseline uses current
 `pool::{Asset, Pool}` imports and does not add another SDK patch.
+
+On `lab/11-rpc-timers`, only the RPC syncer's sleep implementation changes:
+native uses Tokio and wasm32 uses wasmtimer 0.4.3. The existing dependency
+version is reused; SDK and both adapter lockfiles record the new direct edge.
+The default RPC runner now expects successful synchronization and includes
+native regression tests. This adaptation does not address every SDK timer.
