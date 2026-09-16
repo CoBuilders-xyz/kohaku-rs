@@ -56,3 +56,9 @@ bash experiments/compile-wasm/run.sh futures
 
 Exit criterion: locked WASM library check and build succeed. The product is
 a Rust library artifact, not yet a JavaScript-callable adapter.
+
+## Lab 10: execute a note operation
+
+The [note adapter](note-wasm/README.md) adds a generated JS/WASM boundary and
+native fixture comparison. Run `bash experiments/note-wasm/run.sh`. It uses
+current upstream's `note::Note` path rather than the historical provider path.
