@@ -25,6 +25,12 @@ Kohaku-rs is a collection of rust crates for working with Ethereum privacy proto
 - [`kohaku-merkle-tree`](./crates/merkle-tree/) - Merkle tree implementation backed by `kohaku-kv-store`.
 - [`kohaku-fork-kit`](./crates/fork-kit/) - Forking kit for testing and development of kohaku-rs crates.
 
+### Experiments
+
+Experiments are incomplete and unstable features that are not ready for production use. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for more information.
+
+- [`kohaku-pir-provider`](https://github.com/ethereum/kohaku-rs/tree/experiments/pir-v1/crates/pir-provider) - Helios-style dual-endpoint Ethereum provider: PIR for private account reads, fallback JSON-RPC for everything else.
+
 ## Development
 
 kohaku-rs primarily uses [nix flakes](https://wiki.nixos.org/wiki/Flakes) for development. See the [flake.nix](./flake.nix) file for details on required dependencies. To enter the dev shell, run:
