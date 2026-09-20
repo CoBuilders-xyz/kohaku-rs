@@ -3,9 +3,14 @@
 Rust [Tornadocash](https://tornadocash.eth.limo/) client library, designed to interface with Tornado Cash's smart contracts. It provides support for:
 - Merkle tree syncing & storage
 - Reorg recovery
+- Multi-pool management
 - Deposit and withdrawal transaction generation
+- [Relayed](./src/relayer/) withdrawal transactions
+- [Bundled](./src/userop_provider/) withdrawal transactions
 
 ## Example
+
+### Depositing into a Tornado Cash pool
 
 ```rust,no_run
 use alloy::providers::{Provider, ProviderBuilder};
@@ -13,7 +18,7 @@ use kohaku_kv_store::Store;
 use kohaku_tornadocash::{
     indexer::rpc::RpcSyncer,
     pool::Pool,
-    provider::{pool_provider::PoolProvider},
+    provider::tornado_provider::TornadoProvider,
 };
 
 #[tokio::main]
@@ -22,22 +27,148 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .connect_http("http://localhost:8545".parse()?)
         .erased();
 
-    let store = Store::create();
     let syncer = RpcSyncer::new(provider.clone());
-    let pool = Pool::SEPOLIA_ETHER_01;
-
-    let mut pool_provider = PoolProvider::new(
-        pool,
-        store,
+    let mut tornado_provider = TornadoProvider::new(
+        Store::create(),
         syncer.clone().into(),
         syncer.into(),
     );
 
-    pool_provider.sync().await?;
+    tornado_provider.sync().await?;
 
-    let (deposit_call, note) = pool_provider.deposit(&mut rand::rng());
-    println!("Deposit call: {deposit_call:?}");
-    println!("Deposit note: {note:?}");
+    let (deposit_call, note) = tornado_provider.deposit(Pool::SEPOLIA_ETHER_01, &mut rand::rng()).await;
+    Ok(())
+}
+```
+
+### Withdrawing directly from a Tornado Cash pool
+
+```rust,no_run
+use alloy::providers::{Provider, ProviderBuilder};
+use kohaku_kv_store::Store;
+use kohaku_tornadocash::{
+    indexer::rpc::RpcSyncer,
+    pool::Pool,
+    provider::tornado_provider::TornadoProvider,
+};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#     let provider = ProviderBuilder::new()
+#         .connect_http("http://localhost:8545".parse()?)
+#         .erased();
+# 
+#     let syncer = RpcSyncer::new(provider.clone());
+# 
+#     let mut tornado_provider = TornadoProvider::new(
+#         Store::create(),
+#         syncer.clone().into(),
+#         syncer.into(),
+#     );
+# 
+#     tornado_provider.sync().await?;
+# 
+    let note = "tornado-eth-0.1-11155111-0xsecret".parse()?;
+    let recipient = "0xrecipient".parse()?;
+    let withdraw_call = tornado_provider.withdraw(&note, recipient, None, None, None, &mut rand::rng()).await?;
+    
+    Ok(())
+}
+```
+
+### Withdrawing via a Tornado Cash relayer
+
+```rust,no_run
+use alloy::providers::{Provider, ProviderBuilder};
+use alloy::primitives::U256;
+use kohaku_kv_store::Store;
+use kohaku_tornadocash::{
+    indexer::rpc::RpcSyncer,
+    pool::Pool,
+    provider::tornado_provider::TornadoProvider,
+    relayer::{RelayerProvider, client::RelayerClient},
+};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#     let provider = ProviderBuilder::new()
+#         .connect_http("http://localhost:8545".parse()?)
+#         .erased();
+# 
+#     let syncer = RpcSyncer::new(provider.clone());
+#     let mut tornado_provider = TornadoProvider::new(
+#         Store::create(),
+#         syncer.clone().into(),
+#         syncer.into(),
+#     );
+# 
+#     tornado_provider.sync().await?;
+# 
+    let relayer_url = "https://mainnet.relayer.com";
+
+    let relayer_client = RelayerClient::new(relayer_url, 11155111);
+    let mut relayer_provider = RelayerProvider::new(relayer_client, tornado_provider, provider);
+
+    let note = "tornado-eth-0.1-11155111-0xsecret".parse()?;
+    let recipient = "0xrecipient".parse()?;
+    let receipt = relayer_provider.withdraw(&note, recipient, U256::ZERO, &mut rand::rng()).await?;
+    let tx_hash = relayer_provider.await_confirmation(&receipt).await?;
+
+    Ok(())
+}
+```
+
+### Withdrawing via a UserOperation
+
+```rust,no_run
+use alloy::providers::{Provider, ProviderBuilder};
+use alloy::signers::local::PrivateKeySigner;
+use kohaku_kv_store::Store;
+use kohaku_tornadocash::{
+    indexer::rpc::RpcSyncer,
+    pool::Pool,
+    provider::tornado_provider::TornadoProvider,
+    userop_provider::TornadoPaymasterExt,
+};
+use kohaku_userop_kit::{
+    builder::UserOperationBuilder,
+    bundler::{Bundler, pimlico::PimlicoBundler},
+    smart_account::simple_7702_smart_account::{Call, Simple7702SmartAccount},
+};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#     let provider = ProviderBuilder::new()
+#         .connect_http("http://localhost:8545".parse()?)
+#         .erased();
+# 
+#     let syncer = RpcSyncer::new(provider.clone());
+#     let mut tornado_provider = TornadoProvider::new(
+#         Store::create(),
+#         syncer.clone().into(),
+#         syncer.into(),
+#     );
+
+    let owner = PrivateKeySigner::random();
+    let note = "tornado-eth-0.1-11155111-0xsecret".parse()?;
+    let smart_account = Simple7702SmartAccount::new(provider.clone(), owner.address(), 11155111);
+    
+    let bundler = PimlicoBundler::new("https://bundler.pimlico.com".parse()?);
+
+    let userop = UserOperationBuilder::new_with_smart_account(&smart_account)
+        .await?
+        .with_tornadocash_paymaster(
+            &bundler,
+            &provider,
+            &mut tornado_provider,
+            &note,
+            owner.address(),
+            &mut rand::rng(),
+        )
+        .await?
+        .build()
+        .sign(&owner)
+        .await?;
 
     Ok(())
 }

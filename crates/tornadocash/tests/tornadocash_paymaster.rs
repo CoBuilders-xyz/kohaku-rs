@@ -18,6 +18,7 @@ use kohaku_tornadocash::{
 };
 use kohaku_userop_kit::{
     builder::UserOperationBuilder,
+    bundler::Bundler,
     smart_account::simple_7702_smart_account::{Call, Simple7702SmartAccount},
 };
 use tracing::info;

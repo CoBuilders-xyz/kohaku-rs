@@ -1,3 +1,8 @@
+//! 4337 SimpleSmartAccount deployment.
+//!
+//! SimpleSmartAccount is a minimal ERC-7702 impl that can be used for testing purposes. The
+//! bytecode is pulled from pimlicolabs/alto's [e2e tests](https://github.com/pimlicolabs/alto/blob/main/test/e2e/deploy-contracts/constants.ts).
+
 use alloy::{
     network::TransactionBuilder,
     primitives::{Address, Bytes, address},
@@ -7,25 +12,22 @@ use alloy::{
 
 const DETERMINISTIC_DEPLOYER: Address = address!("0x4e59b44847b379578588920ca78fbf26c0b4956c");
 
-// CREATECALL blob (salt + init code) pulled from
-// test/e2e/deploy-contracts/constants.ts in pimlicolabs/alto.
 const SIMPLE_7702_ACCOUNT_IMPLEMENTATION_V08_CREATECALL: &str =
     include_str!("../fixtures/simple_7702_account_v08.createcall.hex");
-
-/// Expected deterministic canonical address of the `Simple7702Account` implementation.
 pub const SIMPLE_7702_ACCOUNT_IMPLEMENTATION_V08: Address =
     address!("0xe6Cae83BdE06E4c305530e199D7217f42808555B");
 
-/// Deploys the ERC-7702 `Simple7702Account` implementation to `provider` at
-/// [`SIMPLE_7702_ACCOUNT_IMPLEMENTATION_V08`] and returns that address.
+/// Deploys a new `SimpleSmartAccount` implementation contract.
+///
+/// Returns the address of the deployed implementation ([`SIMPLE_7702_ACCOUNT_IMPLEMENTATION_V08`]).
 ///
 /// # Errors
-/// Returns an error if the deploy transaction fails, or if no code is found at
-/// [`SIMPLE_7702_ACCOUNT_IMPLEMENTATION_V08`] afterward.
+/// Returns an error if the deploy transaction fails.
 pub async fn deploy_simple_account(provider: &DynProvider) -> Result<Address, anyhow::Error> {
     let data: Bytes = SIMPLE_7702_ACCOUNT_IMPLEMENTATION_V08_CREATECALL
         .trim()
         .parse()?;
+
     provider
         .send_transaction(
             TransactionRequest::default()

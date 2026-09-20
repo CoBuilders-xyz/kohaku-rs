@@ -1,27 +1,33 @@
+//! 4337 [PrivacyPaymaster](https://github.com/Robert-MacWha/privacy-paymaster) deployment and configuration.
+
 use alloy::{
     primitives::{Address, U256},
     providers::DynProvider,
-    sol,
 };
 
-sol!(
-    #[sol(rpc)]
-    PrivacyPaymaster,
-    "fixtures/privacy_paymaster.json"
-);
-sol!(
-    #[sol(rpc)]
-    TornadoFeeAdapter,
-    "fixtures/tornado_fee_adapter.json"
-);
+mod sol {
+    use alloy::sol;
+
+    sol!(
+        #[sol(rpc)]
+        PrivacyPaymaster,
+        "fixtures/privacy_paymaster.json"
+    );
+    sol!(
+        #[sol(rpc)]
+        TornadoFeeAdapter,
+        "fixtures/tornado_fee_adapter.json"
+    );
+}
 
 const PAYMASTER_STAKE_WEI: u128 = 10_u128.pow(17); // 0.1 ETH
 const PAYMASTER_DEPOSIT_WEI: u128 = 10_u128.pow(17); // 0.1 ETH
 const PAYMASTER_UNSTAKE_DELAY_SEC: u32 = 3600;
 const PAYMASTER_TWAP_PERIOD_SEC: u32 = 3600;
 
-/// Deploys a `PrivacyPaymaster` bound to `entrypoint`, `factory`, and `weth`, then deposits and
-/// stakes it so it is immediately usable. Returns the paymaster's address.
+/// Deploys and stakes a new `PrivacyPaymaster`.
+///
+/// Returns the address of the deployed paymaster.
 ///
 /// # Errors
 /// Returns an error if the deploy, deposit, or stake transactions fail.
@@ -31,7 +37,7 @@ pub async fn deploy_paymaster(
     factory: Address,
     weth: Address,
 ) -> Result<Address, anyhow::Error> {
-    let paymaster = PrivacyPaymaster::deploy(
+    let paymaster = sol::PrivacyPaymaster::deploy(
         &provider,
         entrypoint,
         factory,
@@ -58,8 +64,9 @@ pub async fn deploy_paymaster(
     Ok(*paymaster.address())
 }
 
-/// Deploys a `TornadoFeeAdapter` for `pool_address` and approves it on `paymaster`. Returns the
-/// adapter's address.
+/// Deploys a new `TornadoFeeAdapter` for `pool_address`.
+///
+/// Automatically approves on `paymaster`. Returns the adapter's address.
 ///
 /// # Errors
 /// Returns an error if the deploy or approval transactions fail.
@@ -68,8 +75,8 @@ pub async fn deploy_fee_adapter(
     paymaster: Address,
     pool_address: Address,
 ) -> Result<Address, anyhow::Error> {
-    let adapter = TornadoFeeAdapter::deploy(&provider, pool_address).await?;
-    PrivacyPaymaster::new(paymaster, &provider)
+    let adapter = sol::TornadoFeeAdapter::deploy(&provider, pool_address).await?;
+    sol::PrivacyPaymaster::new(paymaster, &provider)
         .setApprovedAdapter(*adapter.address(), true)
         .send()
         .await?

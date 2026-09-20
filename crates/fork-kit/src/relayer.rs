@@ -1,3 +1,5 @@
+//! Tornadocash relayer process management.
+
 use std::{ops::Deref, process::Stdio, time::Duration};
 
 use alloy::{
@@ -19,9 +21,7 @@ const READY_TIMEOUT: Duration = Duration::from_secs(30);
 const READY_POLL_INTERVAL: Duration = Duration::from_millis(200);
 const PREFUND_ETH: u128 = 1_000 * 10_u128.pow(18);
 
-/// Builds and spawns a local `tornado-relayer` (`server` + `worker` + `redis-server`), patched
-/// to target a single pool deployed on a local test chain. `tornado-relayer-server`,
-/// `tornado-relayer-worker`, and `redis-server` must all be on `$PATH`.
+/// Builder for a locally hosted [`RelayerClient`] stack.
 pub struct RelayerBuilder {
     http_rpc_url: String,
     ws_rpc_url: String,
@@ -31,8 +31,7 @@ pub struct RelayerBuilder {
     reward_account: Address,
 }
 
-/// A running relayer stack (`redis-server` + `server` + `worker`) plus a [`Relayer`] client
-/// pointed at it.
+/// A running [`RelayerClient`] stack and a connected [`RelayerClient`].
 pub struct RelayerInstance {
     redis: Child,
     server: Child,
@@ -59,7 +58,7 @@ impl RelayerBuilder {
         }
     }
 
-    /// Funds the relayer's signer with native ETH via `anvil_setBalance`.
+    /// Funds the relayer's signer with native ETH.
     ///
     /// # Errors
     /// Returns an error if the private key fails to parse, or the RPC request fails.
@@ -74,14 +73,13 @@ impl RelayerBuilder {
         Ok(self)
     }
 
-    /// Spawns `redis-server`, `tornado-relayer-server`, and `tornado-relayer-worker`, retrying
-    /// on the next port if a port is already taken.
+    /// Spawns the relayer stack.
     ///
     /// # Errors
-    /// Returns an error if the relayer fails to start (or never becomes ready) on every
-    /// attempted port.
+    /// Returns an error if the relayer fails to start on every attempted port.
     pub async fn spawn(self) -> Result<RelayerInstance, anyhow::Error> {
         let mut port = DEFAULT_PORT;
+
         for attempt in 1..=MAX_START_ATTEMPTS {
             match self.try_spawn(port).await {
                 Ok(instance) => return Ok(instance),
@@ -95,7 +93,7 @@ impl RelayerBuilder {
             }
         }
 
-        bail!("relayer failed to start on any port in {DEFAULT_PORT}..={port}")
+        bail!("relayer failed to start relayer after {MAX_START_ATTEMPTS} attempts");
     }
 
     async fn try_spawn(&self, port: u16) -> Result<RelayerInstance, anyhow::Error> {

@@ -32,7 +32,6 @@ pub struct JobReceipt {
     pub pool: Pool,
 }
 
-/// Withdraw job ID
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobId(pub(super) String);
 

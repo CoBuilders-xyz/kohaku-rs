@@ -1,3 +1,5 @@
+//! 4337 entry point deployment.
+
 use alloy::{
     network::TransactionBuilder,
     primitives::{Address, Bytes, address},
@@ -12,12 +14,12 @@ const DETERMINISTIC_DEPLOYER: Address = address!("0x4e59b44847b379578588920ca78f
 // test/e2e/deploy-contracts/constants.ts in pimlicolabs/alto.
 const ENTRY_POINT_V08_CREATECALL: &str = include_str!("../fixtures/entry_point_v08.createcall.hex");
 
-/// Deploys the canonical ERC-4337 v0.8 `EntryPoint` to `provider` at [`ENTRY_POINT_08`] and
-/// returns that address.
+/// Deploys the canonical ERC-4337 v0.8 `EntryPoint`.
+///
+/// Returns the address of the deployed contract ([`ENTRY_POINT_08`]).
 ///
 /// # Errors
-/// Returns an error if the deploy transaction fails, or if no code is found at
-/// [`ENTRY_POINT_08`] afterward.
+/// Returns an error if the deploy transaction fails.
 pub async fn deploy_entry_point(provider: &DynProvider) -> Result<Address, anyhow::Error> {
     let data: Bytes = ENTRY_POINT_V08_CREATECALL.trim().parse()?;
     provider

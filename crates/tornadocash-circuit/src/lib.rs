@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use rand::CryptoRng;
 use websnark_rs::proof::{Proof, prove_random};
 

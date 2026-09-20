@@ -1,3 +1,5 @@
+//! 4337 bundler process management.
+
 use std::{ops::Deref, process::Stdio, time::Duration};
 
 use alloy::{
@@ -5,7 +7,8 @@ use alloy::{
     providers::{DynProvider, Provider},
     signers::local::PrivateKeySigner,
 };
-use kohaku_userop_kit::bundler::{Bundler, pimlico::PimlicoBundler};
+use anyhow::bail;
+use kohaku_userop_kit::bundler::pimlico::PimlicoBundler;
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, BufReader},
     process::{Child, Command},
@@ -18,8 +21,7 @@ const READY_TIMEOUT: Duration = Duration::from_secs(30);
 const READY_LOG_MARKER: &str = "Server listening at";
 const PREFUND_ETH: u128 = 1_000 * 10_u128.pow(18);
 
-/// Builds and spawns a local [`alto`](https://github.com/pimlicolabs/alto) ERC-4337
-/// bundler process. `alto` must be on `$PATH`.
+/// Builder for a locally hosted [`alto`](https://github.com/pimlicolabs/alto) process.
 pub struct AltoBuilder {
     rpc_url: String,
     entrypoint: Address,
@@ -27,8 +29,7 @@ pub struct AltoBuilder {
     utility_private_key: String,
 }
 
-/// A running [`alto`](https://github.com/pimlicolabs/alto) process plus a
-/// [`Bundler`] client pointed at it.
+/// A running [`alto`](https://github.com/pimlicolabs/alto) process and a connected [`PimlicoBundler`].
 pub struct AltoInstance {
     child: Child,
     bundler: PimlicoBundler,
@@ -49,7 +50,7 @@ impl AltoBuilder {
         }
     }
 
-    /// Funds the executor/utility addresses with native ETH via `anvil_setBalance`.
+    /// Funds the executor and utility addresses with native ETH.
     ///
     /// # Errors
     /// Returns an error if a private key fails to parse, or the RPC request fails.
@@ -66,13 +67,13 @@ impl AltoBuilder {
         Ok(self)
     }
 
-    /// Spawns `alto`, retrying on the next port if a port is already taken.
+    /// Spawns the alto process.
     ///
     /// # Errors
-    /// Returns an error if `alto` fails to start (or never prints its ready marker) on every
-    /// attempted port.
+    /// Returns an error if `alto` fails to start on every attempted port.
     pub async fn spawn(self) -> Result<AltoInstance, anyhow::Error> {
         let mut port = DEFAULT_PORT;
+
         for attempt in 1..=MAX_START_ATTEMPTS {
             match self.try_spawn(port).await {
                 Ok(instance) => return Ok(instance),
@@ -86,7 +87,7 @@ impl AltoBuilder {
             }
         }
 
-        unreachable!("loop above always returns by the last attempt")
+        bail!("failed to start alto after {MAX_START_ATTEMPTS} attempts")
     }
 
     async fn try_spawn(&self, port: u16) -> Result<AltoInstance, anyhow::Error> {
@@ -165,7 +166,7 @@ async fn forward_lines(stream: impl AsyncRead + Unpin, label: &'static str) {
 }
 
 impl Deref for AltoInstance {
-    type Target = dyn Bundler;
+    type Target = PimlicoBundler;
 
     fn deref(&self) -> &Self::Target {
         &self.bundler
