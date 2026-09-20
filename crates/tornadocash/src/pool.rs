@@ -37,7 +37,7 @@ pub struct Pool {
 }
 
 /// Hardcoded list of known tornadocash assets.
-pub const ASSETS: &[Asset] = &[Asset::ETH, Asset::MATIC];
+pub const ASSETS: &[Asset] = &[Asset::ETH, Asset::MATIC, Asset::DAI];
 
 /// Hardcoded list of known tornadocash pools.
 pub const POOLS: &[Pool] = &[
@@ -54,11 +54,18 @@ pub const POOLS: &[Pool] = &[
 
 impl Asset {
     pub const ETH: Asset = Asset::Native {
-        symbol: "ETH",
+        symbol: "eth",
         decimals: 18,
     };
+
     pub const MATIC: Asset = Asset::Native {
-        symbol: "MATIC",
+        symbol: "matic",
+        decimals: 18,
+    };
+
+    pub const DAI: Asset = Asset::Erc20 {
+        address: address!("0x6B175474E89094C44Da98b954EedeAC495271d0F"),
+        symbol: "dai",
         decimals: 18,
     };
 
@@ -66,6 +73,13 @@ impl Asset {
     pub fn symbol(&self) -> String {
         match self {
             Asset::Native { symbol, .. } | Asset::Erc20 { symbol, .. } => symbol.to_string(),
+        }
+    }
+
+    #[must_use]
+    pub fn decimals(&self) -> u8 {
+        match self {
+            Asset::Native { decimals, .. } | Asset::Erc20 { decimals, .. } => *decimals,
         }
     }
 }
@@ -142,6 +156,26 @@ impl Pool {
         adapter_address: None,
     };
 
+    pub const ETHEREUM_DAI_100: Pool = Pool {
+        chain_id: 1,
+        address: address!("0xD4B88Df4D29F5CedD6857912842cff3b20C8Cfa3"),
+        asset: Asset::DAI,
+        amount_wei: 10_u128.pow(20),
+        deployed_block: 9_117_612,
+        paymaster_address: None,
+        adapter_address: None,
+    };
+
+    pub const ETHEREUM_DAI_1000: Pool = Pool {
+        chain_id: 1,
+        address: address!("0xFD8610d20aA15b7B2E3Be39B396a1bC3516c7144"),
+        asset: Asset::DAI,
+        amount_wei: 10_u128.pow(21),
+        deployed_block: 9_161_917,
+        paymaster_address: None,
+        adapter_address: None,
+    };
+
     pub const POLYGON_MATIC_100: Pool = Pool {
         chain_id: 137,
         address: address!("0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD"),
@@ -182,13 +216,13 @@ impl Pool {
         POOLS.iter().find(|pool| pool.address == address).copied()
     }
 
-    /// Pool ID, e.g. "ETH-0.1-1" for the 0.1 ETH pool on Ethereum mainnet.
+    /// Pool ID, e.g. "eth-0.1-1" for the 0.1 ETH pool on Ethereum mainnet.
     #[must_use]
     pub fn id(&self) -> String {
         format!("{}-{}-{}", self.symbol(), self.amount(), self.chain_id)
     }
 
-    /// Pool asset symbol, e.g. "ETH" or "MATIC"
+    /// Pool asset symbol, e.g. "eth" or "matic"
     #[must_use]
     pub fn symbol(&self) -> String {
         self.asset.symbol()
@@ -244,6 +278,6 @@ mod tests {
     #[test]
     fn pool_id() {
         let pool = Pool::ETHEREUM_ETHER_01;
-        assert_eq!(pool.id(), "ETH-0.1-1");
+        assert_eq!(pool.id(), "eth-0.1-1");
     }
 }
