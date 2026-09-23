@@ -66,8 +66,8 @@ impl<P: Provider> RpcSyncer<P> {
     }
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(native, async_trait::async_trait)]
+#[cfg_attr(wasm, async_trait::async_trait(?Send))]
 impl<P: Provider> SyncerBackend for RpcSyncer<P> {
     async fn latest_block(&self, pool: &Pool) -> Result<u64, SyncerError> {
         Ok(self.latest_block(pool).await.map_err(SyncerError::other)?)
@@ -87,8 +87,8 @@ impl<P: Provider> SyncerBackend for RpcSyncer<P> {
     }
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(native, async_trait::async_trait)]
+#[cfg_attr(wasm, async_trait::async_trait(?Send))]
 impl<P: Provider> VerifierBackend for RpcSyncer<P> {
     async fn verify(&self, pool: &Pool, root: U256) -> Result<(), VerifierError> {
         info!("Verifying root {} for pool {}", root, pool.address);

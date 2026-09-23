@@ -2,15 +2,15 @@ use kohaku_kv_store::{Store, backend::StoreError};
 
 const LATEST_BLOCK_KEY: &[u8] = b"latest_block";
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(native, async_trait::async_trait)]
+#[cfg_attr(wasm, async_trait::async_trait(?Send))]
 pub trait IndexerStoreExt {
     async fn latest_block(&self) -> Result<u64, StoreError>;
     async fn commit(&self, latest_block: u64) -> Result<(), StoreError>;
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(native, async_trait::async_trait)]
+#[cfg_attr(wasm, async_trait::async_trait(?Send))]
 impl IndexerStoreExt for Store {
     async fn latest_block(&self) -> Result<u64, StoreError> {
         Ok(self.get(LATEST_BLOCK_KEY).await?.map_or(0, |v| {

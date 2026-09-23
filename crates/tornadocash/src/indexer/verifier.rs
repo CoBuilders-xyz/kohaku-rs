@@ -7,8 +7,8 @@ use thiserror::Error;
 use crate::pool::Pool;
 
 /// Generic verifier interface.
-#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(native, async_trait::async_trait)]
+#[cfg_attr(wasm, async_trait::async_trait(?Send))]
 pub trait VerifierBackend: Send + Sync {
     /// See [`Verifier::verify`].
     async fn verify(&self, pool: &Pool, root: U256) -> Result<(), VerifierError>;
