@@ -10,7 +10,6 @@ use crate::{abis::tornado::Tornado, pool::Pool, relayer::status::RelayerStatus};
 #[derive(Clone)]
 pub struct RelayerClient {
     pub url: String,
-    pub net_id: u32,
 
     client: reqwest::Client,
 }
@@ -21,15 +20,13 @@ pub enum RelayerClientError {
     RequestFailed(#[from] reqwest::Error),
     #[error("Relayer returned an error: {0}")]
     RelayerError(String),
-    #[error("Provider error: {0}")]
-    Provider(#[from] alloy::transports::RpcError<alloy::transports::TransportErrorKind>),
 }
 
 #[derive(Debug, Clone)]
 pub struct JobReceipt {
     pub id: JobId,
-    pub nullifier_hash: B256,
     pub pool: Pool,
+    pub nullifier_hash: B256,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,10 +69,9 @@ pub enum JobStatus {
 }
 
 impl RelayerClient {
-    pub fn new(url: &str, net_id: u32) -> Self {
+    pub fn new(url: &str) -> Self {
         Self {
             url: url.to_string(),
-            net_id,
             client: reqwest::Client::new(),
         }
     }
@@ -133,8 +129,8 @@ impl RelayerClient {
 
         Ok(JobReceipt {
             id: response.id,
+            pool: pool.clone(),
             nullifier_hash,
-            pool: *pool,
         })
     }
 

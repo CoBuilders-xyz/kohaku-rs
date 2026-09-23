@@ -18,7 +18,7 @@ use kohaku_kv_store::Store;
 use kohaku_tornadocash::{
     indexer::rpc::RpcSyncer,
     pool::Pool,
-    provider::tornado_provider::TornadoProvider,
+    provider::TornadoProvider,
 };
 
 #[tokio::main]
@@ -32,11 +32,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Store::create(),
         syncer.clone().into(),
         syncer.into(),
+        provider.clone(),
     );
 
     tornado_provider.sync().await?;
 
-    let (deposit_call, note) = tornado_provider.deposit(Pool::SEPOLIA_ETHER_01, &mut rand::rng()).await;
+    let deposit = tornado_provider.deposit(Pool::SEPOLIA_ETHER_01, &mut rand::rng()).await;
+    let note = deposit.note();
     Ok(())
 }
 ```
@@ -49,7 +51,7 @@ use kohaku_kv_store::Store;
 use kohaku_tornadocash::{
     indexer::rpc::RpcSyncer,
     pool::Pool,
-    provider::tornado_provider::TornadoProvider,
+    provider::TornadoProvider,
 };
 
 #[tokio::main]
@@ -64,13 +66,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #         Store::create(),
 #         syncer.clone().into(),
 #         syncer.into(),
+#         provider.clone(),
 #     );
 # 
 #     tornado_provider.sync().await?;
 # 
     let note = "tornado-eth-0.1-11155111-0xsecret".parse()?;
     let recipient = "0xrecipient".parse()?;
-    let withdraw_call = tornado_provider.withdraw(&note, recipient, None, None, None, &mut rand::rng()).await?;
+    let withdrawal = tornado_provider.withdraw(note, recipient);
     
     Ok(())
 }
@@ -85,8 +88,8 @@ use kohaku_kv_store::Store;
 use kohaku_tornadocash::{
     indexer::rpc::RpcSyncer,
     pool::Pool,
-    provider::tornado_provider::TornadoProvider,
-    relayer::{RelayerProvider, client::RelayerClient},
+    provider::TornadoProvider,
+    relayer::Relayer,
 };
 
 #[tokio::main]
@@ -100,19 +103,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #         Store::create(),
 #         syncer.clone().into(),
 #         syncer.into(),
+#         provider.clone(),
 #     );
 # 
 #     tornado_provider.sync().await?;
 # 
     let relayer_url = "https://mainnet.relayer.com";
-
-    let relayer_client = RelayerClient::new(relayer_url, 11155111);
-    let mut relayer_provider = RelayerProvider::new(relayer_client, tornado_provider, provider);
+    let relayer = Relayer::new(relayer_url);
 
     let note = "tornado-eth-0.1-11155111-0xsecret".parse()?;
     let recipient = "0xrecipient".parse()?;
-    let receipt = relayer_provider.withdraw(&note, recipient, U256::ZERO, &mut rand::rng()).await?;
-    let tx_hash = relayer_provider.await_confirmation(&receipt).await?;
+    let receipt = tornado_provider.withdraw(note, recipient).relay(&relayer, &mut rand::rng()).await?;
+    let tx_hash = relayer.await_confirmation(&tornado_provider, &receipt).await?;
 
     Ok(())
 }
@@ -127,8 +129,8 @@ use kohaku_kv_store::Store;
 use kohaku_tornadocash::{
     indexer::rpc::RpcSyncer,
     pool::Pool,
-    provider::tornado_provider::TornadoProvider,
-    userop_provider::TornadoPaymasterExt,
+    provider::TornadoProvider,
+    userop_provider::WithdrawalPaymasterExt,
 };
 use kohaku_userop_kit::{
     builder::UserOperationBuilder,
@@ -143,10 +145,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #         .erased();
 # 
 #     let syncer = RpcSyncer::new(provider.clone());
-#     let mut tornado_provider = TornadoProvider::new(
+#     let tornado_provider = TornadoProvider::new(
 #         Store::create(),
 #         syncer.clone().into(),
 #         syncer.into(),
+#         provider.clone(),
 #     );
 
     let owner = PrivateKeySigner::random();
@@ -155,20 +158,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let bundler = PimlicoBundler::new("https://bundler.pimlico.com".parse()?);
 
-    let userop = UserOperationBuilder::new_with_smart_account(&smart_account)
-        .await?
-        .with_tornadocash_paymaster(
-            &bundler,
-            &provider,
-            &mut tornado_provider,
-            &note,
-            owner.address(),
-            &mut rand::rng(),
-        )
-        .await?
-        .build()
-        .sign(&owner)
+    let builder = UserOperationBuilder::new_with_smart_account(&smart_account).await?;
+    let builder = tornado_provider
+        .withdraw(note, owner.address())
+        .sponsor(&bundler, builder, &mut rand::rng())
         .await?;
+
+    let userop = builder.build().sign(&owner).await?;
 
     Ok(())
 }
