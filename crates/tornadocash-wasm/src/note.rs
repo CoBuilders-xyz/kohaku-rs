@@ -1,13 +1,13 @@
-use kohaku_tornadocash::note::Note;
+use kohaku_tornadocash::note::Note as CoreNote;
 use serde::{Deserialize, Serialize};
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 
-/// Parsed legacy note data, including the original nullifier and secret bytes.
+/// Structured note data, including the original nullifier and secret bytes.
 #[derive(Serialize, Deserialize, Tsify)]
 #[serde(rename_all = "camelCase")]
 #[tsify(large_number_types_as_bigints)]
-pub struct ParsedNote {
+pub struct NoteData {
     pub symbol: String,
     pub amount: String,
     pub chain_id: u64,
@@ -20,13 +20,13 @@ pub struct ParsedNote {
 }
 
 /// A Tornado note stored in WASM memory until its JavaScript wrapper is freed.
-#[wasm_bindgen(js_name = Note)]
-pub struct WasmNote {
-    inner: Note,
+#[wasm_bindgen]
+pub struct Note {
+    inner: CoreNote,
 }
 
-#[wasm_bindgen(js_class = Note)]
-impl WasmNote {
+#[wasm_bindgen]
+impl Note {
     /// Construct a note from structured data using the core constructor.
     ///
     /// # Errors
@@ -34,10 +34,10 @@ impl WasmNote {
     /// Throws a JavaScript `Error` if fields cannot be converted to Rust,
     /// including secret lengths other than 31 or a chain ID outside `u64`.
     #[wasm_bindgen(constructor)]
-    pub fn new(data: &Ts<ParsedNote>) -> Result<WasmNote, JsError> {
+    pub fn new(data: &Ts<NoteData>) -> Result<Note, JsError> {
         let data = data.to_rust()?;
         Ok(Self {
-            inner: Note::new(
+            inner: CoreNote::new(
                 data.nullifier,
                 data.secret,
                 data.symbol,
@@ -52,7 +52,7 @@ impl WasmNote {
     /// # Errors
     ///
     /// Throws a JavaScript `Error` with the core parser's message on failure.
-    pub fn parse(text: &str) -> Result<WasmNote, JsError> {
+    pub fn parse(text: &str) -> Result<Note, JsError> {
         Ok(Self {
             inner: text.parse()?,
         })
@@ -64,8 +64,8 @@ impl WasmNote {
     ///
     /// Throws a JavaScript `Error` if conversion to JavaScript fails.
     #[wasm_bindgen(js_name = toObject)]
-    pub fn to_object(&self) -> Result<Ts<ParsedNote>, JsError> {
-        let data = ParsedNote {
+    pub fn to_object(&self) -> Result<Ts<NoteData>, JsError> {
+        let data = NoteData {
             symbol: self.inner.symbol.clone(),
             amount: self.inner.amount.clone(),
             chain_id: self.inner.chain_id,

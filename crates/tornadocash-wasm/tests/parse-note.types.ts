@@ -1,9 +1,9 @@
-import { Note, type ParsedNote } from '../../target/tornadocash-wasm-node/kohaku_tornadocash_wasm';
+import { Note, type NoteData } from '../../target/tornadocash-wasm-node/kohaku_tornadocash_wasm';
 
 // Compile-only consumer of the generated declarations; this file is not executed.
 const instance: Note = Note.parse('synthetic note supplied at runtime');
 const note = instance.toObject();
-const parsed: ParsedNote = note;
+const parsed: NoteData = note;
 const symbol: string = parsed.symbol;
 const amount: string = parsed.amount;
 const chainId: bigint = note.chainId;
@@ -24,7 +24,7 @@ const text: string = instance.toString();
 // @ts-expect-error Parsing accepts text, not structured data.
 Note.parse(parsed);
 // @ts-expect-error Parsing returns a class instance, not a plain DTO or any.
-const data: ParsedNote = Note.parse('note');
+const data: NoteData = Note.parse('note');
 // @ts-expect-error The snapshot has no WASM methods.
 note.commitment();
 // @ts-expect-error Hash methods return strings, not bigint or any.
