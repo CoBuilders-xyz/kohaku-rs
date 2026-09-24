@@ -29,7 +29,7 @@ Parsing follows the Rust core's rules; it does not trim whitespace or add
 validation for the symbol or denomination. Computing a commitment does not
 check whether a deposit exists on-chain.
 
-Each adapter consists of:
+Each hash adapter consists of:
 
 - `#[wasm_bindgen]`: export the function to JavaScript.
 - `note: &str`: accept a JavaScript string as Rust text.
@@ -66,6 +66,7 @@ to JavaScript fails.
 The Rust annotations control the generated type and the runtime conversion:
 
 - `Serialize` converts the struct's fields to JavaScript values.
+- `Deserialize` reads structured JavaScript input back into the Rust fields.
 - `Tsify` generates the TypeScript declaration from the Rust struct.
 - `#[serde(rename_all = "camelCase")]` maps `chain_id` to `chainId`.
 - `#[tsify(large_number_types_as_bigints)]` makes `u64` a JS/TS `bigint`,
@@ -76,8 +77,33 @@ The Rust annotations control the generated type and the runtime conversion:
   conversion inside the adapter and expose `ParsedNote` as the return type in TS.
 
 The dependency enables tsify's `js` feature, using `serde-wasm-bindgen` for the
-conversion. See [tsify 0.5.8](https://docs.rs/tsify/0.5.8/tsify/). This is an
-output type, so it only needs serialization; no structured JS input is accepted.
+conversion. See [tsify 0.5.8](https://docs.rs/tsify/0.5.8/tsify/).
+
+### Formatting a note
+
+The same `ParsedNote` type can be supplied to the formatter:
+
+```ts
+export function format_note(note: ParsedNote): string;
+
+const text = format_note(parse_note(originalText));
+```
+
+`format_note` delegates to the core's `Note::new` and `Display` implementation.
+It emits `tornado-{symbol}-{amount}-{chainId}-0x{preimage}`, with lowercase hex
+and the nullifier's 31 bytes followed by the secret's 31 bytes. The amount text
+is preserved. Formatting a parsed note normalizes the hex prefix/case and the
+decimal chain ID spelling.
+
+The adapter takes `Ts<ParsedNote>` and calls `note.to_rust()?`. Deserialization
+checks that fields can be represented by the Rust types, including exactly
+31 bytes per secret and a chain ID in the `u64` range. Conversion errors become
+JavaScript `Error` exceptions. The core constructor and formatter add no symbol
+or amount validation, so arbitrary strings supplied directly may produce text
+that the core parser cannot read back.
+
+In this direction, `Deserialize` handles JS-to-Rust conversion and `Tsify`
+provides the TypeScript input type. The core still builds and formats the note.
 
 ## Build and run in Node
 
@@ -104,8 +130,9 @@ TORNADOCASH_WASM_MODULE=crates/target/tornadocash-wasm-node/kohaku_tornadocash_w
 
 The last command checks the generated JS/WASM boundary with synthetic notes:
 fixed-width hex output, JavaScript exceptions, nullifier-hash behavior, parsed
-fields and byte order, and exact `bigint` values across the `u64` range. It does
-not establish parity with the TS SDK or validate browser execution.
+fields and byte order, exact `bigint` values across the `u64` range, formatting
+round trips, and invalid structured inputs. It does not establish parity with
+the TS SDK or validate browser execution.
 
 After generating the bindings, check a TypeScript consumer against the generated
 declarations locally:
@@ -115,8 +142,9 @@ npm exec --yes --package=typescript@7.0.2 -- tsc --noEmit --strict \
   --target ES2020 --module Node16 crates/tornadocash-wasm/tests/*.types.ts
 ```
 
-This compile-only fixture verifies the result type and rejects `number` chain
-IDs, ordinary arrays for secret bytes, and the Rust `chain_id` spelling.
+These compile-only fixtures verify result and input types, and reject `number`
+chain IDs, ordinary arrays for secret bytes, missing fields, and the Rust
+`chain_id` spelling.
 
 The test uses `.cjs` because `--target nodejs` generates a CommonJS module.
 It exercises the generated JavaScript API, including thrown `Error` objects.
