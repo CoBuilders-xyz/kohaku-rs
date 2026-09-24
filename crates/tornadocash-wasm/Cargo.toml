@@ -9,6 +9,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 kohaku-tornadocash = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_bytes = { workspace = true }
+tsify = { workspace = true }
 wasm-bindgen = { workspace = true }
 
 [lints]
