@@ -2,4 +2,4 @@
 
 mod note;
 
-pub use note::note_commitment;
+pub use note::{note_commitment, note_nullifier_hash};
