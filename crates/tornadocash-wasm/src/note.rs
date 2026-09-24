@@ -1,10 +1,10 @@
 use kohaku_tornadocash::note::Note;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 
 /// Parsed legacy note data, including the original nullifier and secret bytes.
-#[derive(Serialize, Tsify)]
+#[derive(Serialize, Deserialize, Tsify)]
 #[serde(rename_all = "camelCase")]
 #[tsify(large_number_types_as_bigints)]
 pub struct ParsedNote {
@@ -35,6 +35,25 @@ pub fn parse_note(note: &str) -> Result<Ts<ParsedNote>, JsError> {
         secret: note.secret.into_bytes(),
     };
     Ok(parsed.into_ts()?)
+}
+
+/// Format structured note data as a legacy note string using the core's `Display`.
+///
+/// # Errors
+///
+/// Throws a JavaScript `Error` if conversion to Rust fails, including invalid
+/// secret lengths or a chain ID outside the `u64` range.
+#[wasm_bindgen]
+pub fn format_note(note: Ts<ParsedNote>) -> Result<String, JsError> {
+    let note = note.to_rust()?;
+    let note = Note::new(
+        note.nullifier,
+        note.secret,
+        note.symbol,
+        note.amount,
+        note.chain_id,
+    );
+    Ok(note.to_string())
 }
 
 /// Compute a note's commitment as `0x` followed by 64 lowercase hex digits.
