@@ -5,6 +5,7 @@ members = [
     "merkle-tree",
     "tornadocash",
     "tornadocash-circuit",
+    "tornadocash-wasm",
     "userop-kit",
 ]
 resolver = "3"
@@ -50,4 +51,5 @@ thiserror = "2.0.20"
 tokio = "1.53.1"
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
+wasm-bindgen = "=0.2.108"
 websnark-rs = "0.8.0"
