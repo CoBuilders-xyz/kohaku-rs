@@ -29,7 +29,7 @@ Parsing follows the Rust core's rules; it does not trim whitespace or add
 validation for the symbol or denomination. Computing a commitment does not
 check whether a deposit exists on-chain.
 
-Each adapter consists of:
+Each hash adapter consists of:
 
 - `#[wasm_bindgen]`: export the function to JavaScript.
 - `note: &str`: accept a JavaScript string as Rust text.
@@ -39,6 +39,71 @@ Each adapter consists of:
 - `format!("0x{:064x}", note.commitment())`: call the core and format its integer
   as lowercase hex, padded with leading zeros to 64 digits. The nullifier hash
   adapter calls `note.nullifier_hash()` instead.
+
+### Typed note parsing
+
+`parse_note` uses the same core parser and returns all five fields of the note
+as a plain JavaScript object. The Rust `ParsedNote` struct lives in `src/note.rs`.
+`tsify` generates this declaration together with the binding's `.d.ts`:
+
+```ts
+export interface ParsedNote {
+  symbol: string;
+  amount: string;
+  chainId: bigint;
+  nullifier: Uint8Array;
+  secret: Uint8Array;
+}
+
+export function parse_note(note: string): ParsedNote;
+```
+
+The amount remains the original text. Both byte arrays have length 31 and
+preserve the core's byte order. They contain the note's original secrets, not
+their hashes. The function throws a JavaScript `Error` if parsing or conversion
+to JavaScript fails.
+
+The Rust annotations control the generated type and the runtime conversion:
+
+- `Serialize` converts the struct's fields to JavaScript values.
+- `Deserialize` reads structured JavaScript input back into the Rust fields.
+- `Tsify` generates the TypeScript declaration from the Rust struct.
+- `#[serde(rename_all = "camelCase")]` maps `chain_id` to `chainId`.
+- `#[tsify(large_number_types_as_bigints)]` makes `u64` a JS/TS `bigint`,
+  preserving values above JavaScript's safe integer range.
+- `#[serde(with = "serde_bytes")]` serializes each byte array as a `Uint8Array`;
+  `#[tsify(type = "Uint8Array")]` describes that representation in TypeScript.
+- `Result<Ts<ParsedNote>, JsError>` and `parsed.into_ts()?` perform the fallible
+  conversion inside the adapter and expose `ParsedNote` as the return type in TS.
+
+The dependency enables tsify's `js` feature, using `serde-wasm-bindgen` for the
+conversion. See [tsify 0.5.8](https://docs.rs/tsify/0.5.8/tsify/).
+
+### Formatting a note
+
+The same `ParsedNote` type can be supplied to the formatter:
+
+```ts
+export function format_note(note: ParsedNote): string;
+
+const text = format_note(parse_note(originalText));
+```
+
+`format_note` delegates to the core's `Note::new` and `Display` implementation.
+It emits `tornado-{symbol}-{amount}-{chainId}-0x{preimage}`, with lowercase hex
+and the nullifier's 31 bytes followed by the secret's 31 bytes. The amount text
+is preserved. Formatting a parsed note normalizes the hex prefix/case and the
+decimal chain ID spelling.
+
+The adapter takes `Ts<ParsedNote>` and calls `note.to_rust()?`. Deserialization
+checks that fields can be represented by the Rust types, including exactly
+31 bytes per secret and a chain ID in the `u64` range. Conversion errors become
+JavaScript `Error` exceptions. The core constructor and formatter add no symbol
+or amount validation, so arbitrary strings supplied directly may produce text
+that the core parser cannot read back.
+
+In this direction, `Deserialize` handles JS-to-Rust conversion and `Tsify`
+provides the TypeScript input type. The core still builds and formats the note.
 
 ## Build and run in Node
 
@@ -64,9 +129,22 @@ TORNADOCASH_WASM_MODULE=crates/target/tornadocash-wasm-node/kohaku_tornadocash_w
 ```
 
 The last command checks the generated JS/WASM boundary with synthetic notes:
-fixed-width hex output, JavaScript exceptions for invalid input, and nullifier
-hash dependence on the nullifier rather than the secret or metadata. It does
-not establish parity with the TS SDK or validate browser execution.
+fixed-width hex output, JavaScript exceptions, nullifier-hash behavior, parsed
+fields and byte order, exact `bigint` values across the `u64` range, formatting
+round trips, and invalid structured inputs. It does not establish parity with
+the TS SDK or validate browser execution.
+
+After generating the bindings, check a TypeScript consumer against the generated
+declarations locally:
+
+```sh
+npm exec --yes --package=typescript@7.0.2 -- tsc --noEmit --strict \
+  --target ES2020 --module Node16 crates/tornadocash-wasm/tests/*.types.ts
+```
+
+These compile-only fixtures verify result and input types, and reject `number`
+chain IDs, ordinary arrays for secret bytes, missing fields, and the Rust
+`chain_id` spelling.
 
 The test uses `.cjs` because `--target nodejs` generates a CommonJS module.
 It exercises the generated JavaScript API, including thrown `Error` objects.
@@ -79,11 +157,14 @@ example through `wasm-bindgen-test`, rather than ordinary native `cargo test`.
 
 The `WASM` workflow runs on pull requests targeting `master`, pushes to `master`,
 and manual dispatch. It builds the WASM library, generates the Node bindings,
-and runs every `tests/*.cjs` file with Node's test runner. A build, generation,
-or test failure fails the job. This check runs separately from the native Rust CI.
+and runs every `tests/*.cjs` file with Node's test runner. It then checks all
+`tests/*.types.ts` consumers against the generated declarations with
+`tsc --noEmit --strict`. A build, generation, runtime test, or type-check failure
+fails the job. This check runs separately from the native Rust CI.
 
-CI uses Rust 1.98.1, Node 26.8.1, and wasm-bindgen CLI 0.2.108. When updating
-the wasm-bindgen dependency, update the CLI version in the workflow as well.
+CI uses Rust 1.98.1, Node 26.8.1, wasm-bindgen CLI 0.2.108, and TypeScript 7.0.2.
+When updating the wasm-bindgen dependency, update the CLI version in the workflow
+as well.
 
-`wasm-bindgen` generates the JS loader and `.d.ts` for these primitive signatures.
-This crate does not yet include `tsify`, a public SDK wrapper, or a Worker.
+`wasm-bindgen` generates the JS loader and `.d.ts`, including the `ParsedNote`
+declaration supplied by `tsify`. A public SDK wrapper and Worker are future work.
