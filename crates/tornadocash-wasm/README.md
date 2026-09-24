@@ -112,7 +112,7 @@ declarations locally:
 
 ```sh
 npm exec --yes --package=typescript@7.0.2 -- tsc --noEmit --strict \
-  --target ES2020 --module Node16 crates/tornadocash-wasm/tests/parse-note.types.ts
+  --target ES2020 --module Node16 crates/tornadocash-wasm/tests/*.types.ts
 ```
 
 This compile-only fixture verifies the result type and rejects `number` chain
@@ -129,11 +129,14 @@ example through `wasm-bindgen-test`, rather than ordinary native `cargo test`.
 
 The `WASM` workflow runs on pull requests targeting `master`, pushes to `master`,
 and manual dispatch. It builds the WASM library, generates the Node bindings,
-and runs every `tests/*.cjs` file with Node's test runner. A build, generation,
-or test failure fails the job. This check runs separately from the native Rust CI.
+and runs every `tests/*.cjs` file with Node's test runner. It then checks all
+`tests/*.types.ts` consumers against the generated declarations with
+`tsc --noEmit --strict`. A build, generation, runtime test, or type-check failure
+fails the job. This check runs separately from the native Rust CI.
 
-CI uses Rust 1.98.1, Node 26.8.1, and wasm-bindgen CLI 0.2.108. When updating
-the wasm-bindgen dependency, update the CLI version in the workflow as well.
+CI uses Rust 1.98.1, Node 26.8.1, wasm-bindgen CLI 0.2.108, and TypeScript 7.0.2.
+When updating the wasm-bindgen dependency, update the CLI version in the workflow
+as well.
 
 `wasm-bindgen` generates the JS loader and `.d.ts`, including the `ParsedNote`
 declaration supplied by `tsify`. A public SDK wrapper and Worker are future work.

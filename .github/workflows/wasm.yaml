@@ -53,3 +53,8 @@ jobs:
 
       - name: Test JavaScript API
         run: node --test crates/tornadocash-wasm/tests/*.cjs
+
+      - name: Check TypeScript declarations
+        run: >-
+          npm exec --yes --package=typescript@7.0.2 -- tsc --noEmit --strict
+          --target ES2020 --module Node16 crates/tornadocash-wasm/tests/*.types.ts
