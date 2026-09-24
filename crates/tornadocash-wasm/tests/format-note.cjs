@@ -5,7 +5,7 @@ const { test } = require('node:test');
 if (!process.env.TORNADOCASH_WASM_MODULE) {
   throw new Error('Set TORNADOCASH_WASM_MODULE to the generated wasm-bindgen JavaScript module');
 }
-const { format_note, parse_note } = require(resolve(process.env.TORNADOCASH_WASM_MODULE));
+const { Note } = require(resolve(process.env.TORNADOCASH_WASM_MODULE));
 const fields = {
   symbol: 'eth',
   amount: '0.10',
@@ -15,33 +15,43 @@ const fields = {
 };
 const preimage = Buffer.concat([fields.nullifier, fields.secret]).toString('hex');
 
-test('format_note produces the core legacy format from structured data', () => {
-  const text = format_note(fields);
+test('Note constructor and toString produce the core legacy format', (t) => {
+  const note = new Note(fields);
+  t.after(() => note.free());
+  const text = note.toString();
   assert.equal(text, `tornado-eth-0.10-1-0x${preimage}`);
-  assert.deepEqual(parse_note(text), fields);
+  const parsed = Note.parse(text);
+  t.after(() => parsed.free());
+  assert.deepEqual(parsed.toObject(), fields);
+  assert.equal(parsed.commitment(), note.commitment());
+  assert.equal(parsed.nullifierHash(), note.nullifierHash());
 });
 
-test('format_note canonicalizes hex while preserving the amount text', () => {
-  const input = `tornado-eth-0.10-1-${preimage.toUpperCase()}`;
-  assert.equal(format_note(parse_note(input)), `tornado-eth-0.10-1-0x${preimage}`);
+test('Note.toString canonicalizes hex while preserving the amount text', (t) => {
+  const note = Note.parse(`tornado-eth-0.10-1-${preimage.toUpperCase()}`);
+  t.after(() => note.free());
+  assert.equal(note.toString(), `tornado-eth-0.10-1-0x${preimage}`);
 });
 
-test('format_note preserves chain IDs across the u64 range', () => {
+test('Note constructor preserves chain IDs across the u64 range', (t) => {
   for (const chainId of [0n, 9007199254740993n, 18446744073709551615n]) {
-    const note = { ...fields, chainId };
-    assert.equal(format_note(note), `tornado-eth-0.10-${chainId}-0x${preimage}`);
-    assert.deepEqual(parse_note(format_note(note)), note);
+    const data = { ...fields, chainId };
+    const note = new Note(data);
+    t.after(() => note.free());
+    assert.equal(note.toString(), `tornado-eth-0.10-${chainId}-0x${preimage}`);
+    const parsed = Note.parse(note.toString());
+    t.after(() => parsed.free());
+    assert.deepEqual(parsed.toObject(), data);
   }
 });
 
-test('format_note retains the core constructor and formatter metadata behavior', () => {
-  assert.equal(
-    format_note({ ...fields, symbol: 'TOKEN', amount: 'custom' }),
-    `tornado-TOKEN-custom-1-0x${preimage}`,
-  );
+test('Note retains the core constructor and formatter metadata behavior', (t) => {
+  const note = new Note({ ...fields, symbol: 'TOKEN', amount: 'custom' });
+  t.after(() => note.free());
+  assert.equal(note.toString(), `tornado-TOKEN-custom-1-0x${preimage}`);
 });
 
-test('format_note rejects invalid structured inputs with JavaScript Errors', () => {
+test('Note constructor rejects invalid structured inputs with JavaScript Errors', (t) => {
   const { secret, ...missingSecret } = fields;
   const invalid = [
     undefined,
@@ -59,8 +69,29 @@ test('format_note rejects invalid structured inputs with JavaScript Errors', () 
     { ...fields, secret: new Uint8Array(32) },
   ];
   for (const note of invalid) {
-    assert.throws(() => format_note(note), Error);
+    assert.throws(() => new Note(note), Error);
   }
-  // A failed conversion must leave the instance usable.
-  assert.equal(format_note(fields), `tornado-eth-0.10-1-0x${preimage}`);
+  // A failed conversion must leave the WASM module usable.
+  const note = new Note(fields);
+  t.after(() => note.free());
+  assert.equal(note.toString(), `tornado-eth-0.10-1-0x${preimage}`);
+});
+
+test('Note owns its data and toObject returns independent snapshots', (t) => {
+  const input = { ...fields, nullifier: fields.nullifier.slice(), secret: fields.secret.slice() };
+  const note = new Note(input);
+  t.after(() => note.free());
+  const commitment = note.commitment();
+  const nullifierHash = note.nullifierHash();
+  input.symbol = 'changed';
+  input.nullifier.fill(0);
+  input.secret.fill(0);
+  const snapshot = note.toObject();
+  snapshot.amount = 'changed';
+  snapshot.nullifier.fill(255);
+  snapshot.secret.fill(255);
+  assert.deepEqual(note.toObject(), fields);
+  assert.equal(note.toString(), `tornado-eth-0.10-1-0x${preimage}`);
+  assert.equal(note.commitment(), commitment);
+  assert.equal(note.nullifierHash(), nullifierHash);
 });

@@ -19,63 +19,81 @@ pub struct ParsedNote {
     pub secret: [u8; 31],
 }
 
-/// Parse a legacy note into a plain JavaScript object.
-///
-/// # Errors
-///
-/// Throws a JavaScript `Error` if parsing or conversion to JavaScript fails.
-#[wasm_bindgen]
-pub fn parse_note(note: &str) -> Result<Ts<ParsedNote>, JsError> {
-    let note: Note = note.parse()?;
-    let parsed = ParsedNote {
-        symbol: note.symbol,
-        amount: note.amount,
-        chain_id: note.chain_id,
-        nullifier: note.nullifier.into_bytes(),
-        secret: note.secret.into_bytes(),
-    };
-    Ok(parsed.into_ts()?)
+/// A Tornado note stored in WASM memory until its JavaScript wrapper is freed.
+#[wasm_bindgen(js_name = Note)]
+pub struct WasmNote {
+    inner: Note,
 }
 
-/// Format structured note data as a legacy note string using the core's `Display`.
-///
-/// # Errors
-///
-/// Throws a JavaScript `Error` if conversion to Rust fails, including invalid
-/// secret lengths or a chain ID outside the `u64` range.
-#[wasm_bindgen]
-pub fn format_note(note: Ts<ParsedNote>) -> Result<String, JsError> {
-    let note = note.to_rust()?;
-    let note = Note::new(
-        note.nullifier,
-        note.secret,
-        note.symbol,
-        note.amount,
-        note.chain_id,
-    );
-    Ok(note.to_string())
-}
+#[wasm_bindgen(js_class = Note)]
+impl WasmNote {
+    /// Construct a note from structured data using the core constructor.
+    ///
+    /// # Errors
+    ///
+    /// Throws a JavaScript `Error` if fields cannot be converted to Rust,
+    /// including secret lengths other than 31 or a chain ID outside `u64`.
+    #[wasm_bindgen(constructor)]
+    pub fn new(data: &Ts<ParsedNote>) -> Result<WasmNote, JsError> {
+        let data = data.to_rust()?;
+        Ok(Self {
+            inner: Note::new(
+                data.nullifier,
+                data.secret,
+                data.symbol,
+                data.amount,
+                data.chain_id,
+            ),
+        })
+    }
 
-/// Compute a note's commitment as `0x` followed by 64 lowercase hex digits.
-///
-/// # Errors
-///
-/// Throws a JavaScript `Error` if the core cannot parse the note.
-#[wasm_bindgen]
-pub fn note_commitment(note: &str) -> Result<String, JsError> {
-    let note: Note = note.parse()?;
-    Ok(format!("0x{:064x}", note.commitment()))
-}
+    /// Parse a legacy note and retain the resulting core instance.
+    ///
+    /// # Errors
+    ///
+    /// Throws a JavaScript `Error` with the core parser's message on failure.
+    pub fn parse(text: &str) -> Result<WasmNote, JsError> {
+        Ok(Self {
+            inner: text.parse()?,
+        })
+    }
 
-/// Compute a note's nullifier hash as `0x` followed by 64 lowercase hex digits.
-///
-/// This does not check whether the note has been spent.
-///
-/// # Errors
-///
-/// Throws a JavaScript `Error` if the core cannot parse the note.
-#[wasm_bindgen]
-pub fn note_nullifier_hash(note: &str) -> Result<String, JsError> {
-    let note: Note = note.parse()?;
-    Ok(format!("0x{:064x}", note.nullifier_hash()))
+    /// Export an independent copy of the note's fields, including its secrets.
+    ///
+    /// # Errors
+    ///
+    /// Throws a JavaScript `Error` if conversion to JavaScript fails.
+    #[wasm_bindgen(js_name = toObject)]
+    pub fn to_object(&self) -> Result<Ts<ParsedNote>, JsError> {
+        let data = ParsedNote {
+            symbol: self.inner.symbol.clone(),
+            amount: self.inner.amount.clone(),
+            chain_id: self.inner.chain_id,
+            nullifier: self.inner.nullifier.into_bytes(),
+            secret: self.inner.secret.into_bytes(),
+        };
+        Ok(data.into_ts()?)
+    }
+
+    /// Format the note using the core's legacy `Display` representation.
+    #[wasm_bindgen(js_name = toString)]
+    #[must_use]
+    pub fn format(&self) -> String {
+        self.inner.to_string()
+    }
+
+    /// Compute the commitment as `0x` followed by 64 lowercase hex digits.
+    #[must_use]
+    pub fn commitment(&self) -> String {
+        format!("0x{:064x}", self.inner.commitment())
+    }
+
+    /// Compute the nullifier hash as `0x` followed by 64 lowercase hex digits.
+    ///
+    /// This does not check whether the note has been spent.
+    #[wasm_bindgen(js_name = nullifierHash)]
+    #[must_use]
+    pub fn nullifier_hash(&self) -> String {
+        format!("0x{:064x}", self.inner.nullifier_hash())
+    }
 }

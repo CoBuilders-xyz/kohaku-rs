@@ -1,7 +1,8 @@
-import { parse_note, type ParsedNote } from '../../target/tornadocash-wasm-node/kohaku_tornadocash_wasm';
+import { Note, type ParsedNote } from '../../target/tornadocash-wasm-node/kohaku_tornadocash_wasm';
 
 // Compile-only consumer of the generated declarations; this file is not executed.
-const note = parse_note('synthetic note supplied at runtime');
+const instance: Note = Note.parse('synthetic note supplied at runtime');
+const note = instance.toObject();
 const parsed: ParsedNote = note;
 const symbol: string = parsed.symbol;
 const amount: string = parsed.amount;
@@ -15,3 +16,18 @@ const numericChainId: number = note.chainId;
 const secretArray: number[] = note.secret;
 // @ts-expect-error Rust snake_case is converted to camelCase in the public object.
 note.chain_id;
+
+const commitment: string = instance.commitment();
+const nullifierHash: string = instance.nullifierHash();
+const text: string = instance.toString();
+
+// @ts-expect-error Parsing accepts text, not structured data.
+Note.parse(parsed);
+// @ts-expect-error Parsing returns a class instance, not a plain DTO or any.
+const data: ParsedNote = Note.parse('note');
+// @ts-expect-error The snapshot has no WASM methods.
+note.commitment();
+// @ts-expect-error Hash methods return strings, not bigint or any.
+const hashNumber: bigint = instance.commitment();
+
+instance.free();

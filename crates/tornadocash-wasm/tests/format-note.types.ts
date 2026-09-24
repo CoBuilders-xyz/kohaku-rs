@@ -1,4 +1,4 @@
-import { format_note, parse_note, type ParsedNote } from '../../target/tornadocash-wasm-node/kohaku_tornadocash_wasm';
+import { Note, type ParsedNote } from '../../target/tornadocash-wasm-node/kohaku_tornadocash_wasm';
 
 const fields: ParsedNote = {
   symbol: 'eth',
@@ -8,16 +8,22 @@ const fields: ParsedNote = {
   secret: new Uint8Array(31),
 };
 
-const text: string = format_note(fields);
-const roundTrip: string = format_note(parse_note(text));
+const note: Note = new Note(fields);
+const text: string = note.toString();
+const parsed: Note = Note.parse(text);
+const roundTrip: string = parsed.toString();
+const snapshot: ParsedNote = note.toObject();
 
-// @ts-expect-error Formatting accepts structured data, not a note string.
-format_note(text);
+// @ts-expect-error The constructor accepts structured data, not a note string.
+new Note(text);
 // @ts-expect-error Chain IDs are bigint in the public TypeScript contract.
-format_note({ ...fields, chainId: 1 });
+new Note({ ...fields, chainId: 1 });
 // @ts-expect-error Secret bytes are Uint8Array in the public TypeScript contract.
-format_note({ ...fields, secret: [1, 2, 3] });
+new Note({ ...fields, secret: [1, 2, 3] });
 // @ts-expect-error All note fields are required.
-format_note({ symbol: 'eth' });
+new Note({ symbol: 'eth' });
 // @ts-expect-error Formatting returns a string, not ParsedNote or any.
-const object: ParsedNote = format_note(fields);
+const object: ParsedNote = note.toString();
+
+note.free();
+parsed.free();

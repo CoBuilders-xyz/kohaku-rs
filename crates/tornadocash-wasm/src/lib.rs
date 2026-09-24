@@ -2,4 +2,4 @@
 
 mod note;
 
-pub use note::{ParsedNote, format_note, note_commitment, note_nullifier_hash, parse_note};
+pub use note::{ParsedNote, WasmNote};

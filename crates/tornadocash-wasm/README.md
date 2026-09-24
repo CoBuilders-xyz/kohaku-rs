@@ -5,48 +5,26 @@ WebAssembly binding crate for `kohaku-tornadocash`.
 This crate depends on the Rust Tornadocash core and `wasm-bindgen`, and builds
 both an `rlib` and a `cdylib`.
 
-## Note bindings
+## Note class
 
-Note bindings live in `src/note.rs`; `src/lib.rs` declares the module and
-reexports the Rust functions.
+Bindings live in `src/note.rs`; `src/lib.rs` declares the module and reexports
+`WasmNote` and `ParsedNote`. `wasm-bindgen` exposes `WasmNote` to JS as `Note`.
+Each wrapper owns a core Rust `Note` in the loaded WASM instance. Multiple notes
+share that instance; creating a note does not start another WASM instance or Worker.
 
-```ts
-export function note_commitment(note: string): string;
-export function note_nullifier_hash(note: string): string;
-```
-
-Both functions parse a legacy note with the core's `Note` parser and call
-`Note::commitment` or `Note::nullifier_hash`. Each returns `0x` followed by 64
-lowercase hexadecimal digits (32 bytes, most significant byte first). They
-throw a JavaScript `Error` with the core parser's message for invalid input
-and run synchronously.
-
-The commitment depends on the nullifier and secret. The nullifier hash depends
-only on the nullifier; neither hash depends on the symbol, amount, or chain ID.
-Computing the nullifier hash does not check whether the note has been spent.
-
-Parsing follows the Rust core's rules; it does not trim whitespace or add
-validation for the symbol or denomination. Computing a commitment does not
-check whether a deposit exists on-chain.
-
-Each hash adapter consists of:
-
-- `#[wasm_bindgen]`: export the function to JavaScript.
-- `note: &str`: accept a JavaScript string as Rust text.
-- `Result<String, JsError>`: return a string on success or throw an error in JS.
-- `let note: Note = note.parse()?`: use the core parser; `?` converts a parser
-  error into `JsError` and returns early.
-- `format!("0x{:064x}", note.commitment())`: call the core and format its integer
-  as lowercase hex, padded with leading zeros to 64 digits. The nullifier hash
-  adapter calls `note.nullifier_hash()` instead.
-
-### Typed note parsing
-
-`parse_note` uses the same core parser and returns all five fields of the note
-as a plain JavaScript object. The Rust `ParsedNote` struct lives in `src/note.rs`.
-`tsify` generates this declaration together with the binding's `.d.ts`:
+The generated API includes:
 
 ```ts
+export class Note {
+  constructor(data: ParsedNote);
+  static parse(text: string): Note;
+  toObject(): ParsedNote;
+  toString(): string;
+  commitment(): string;
+  nullifierHash(): string;
+  free(): void;
+}
+
 export interface ParsedNote {
   symbol: string;
   amount: string;
@@ -54,56 +32,79 @@ export interface ParsedNote {
   nullifier: Uint8Array;
   secret: Uint8Array;
 }
-
-export function parse_note(note: string): ParsedNote;
 ```
 
-The amount remains the original text. Both byte arrays have length 31 and
-preserve the core's byte order. They contain the note's original secrets, not
-their hashes. The function throws a JavaScript `Error` if parsing or conversion
-to JavaScript fails.
-
-The Rust annotations control the generated type and the runtime conversion:
-
-- `Serialize` converts the struct's fields to JavaScript values.
-- `Deserialize` reads structured JavaScript input back into the Rust fields.
-- `Tsify` generates the TypeScript declaration from the Rust struct.
-- `#[serde(rename_all = "camelCase")]` maps `chain_id` to `chainId`.
-- `#[tsify(large_number_types_as_bigints)]` makes `u64` a JS/TS `bigint`,
-  preserving values above JavaScript's safe integer range.
-- `#[serde(with = "serde_bytes")]` serializes each byte array as a `Uint8Array`;
-  `#[tsify(type = "Uint8Array")]` describes that representation in TypeScript.
-- `Result<Ts<ParsedNote>, JsError>` and `parsed.into_ts()?` perform the fallible
-  conversion inside the adapter and expose `ParsedNote` as the return type in TS.
-
-The dependency enables tsify's `js` feature, using `serde-wasm-bindgen` for the
-conversion. See [tsify 0.5.8](https://docs.rs/tsify/0.5.8/tsify/).
-
-### Formatting a note
-
-The same `ParsedNote` type can be supplied to the formatter:
+Use the same object for successive operations, then release it:
 
 ```ts
-export function format_note(note: ParsedNote): string;
+const note = Note.parse(originalText);
+try {
+  const commitment = note.commitment();
+  const nullifierHash = note.nullifierHash();
+  const canonicalText = note.toString();
+  const fields = note.toObject();
 
-const text = format_note(parse_note(originalText));
+  const copy = new Note(fields);
+  try {
+    console.log(copy.toString() === canonicalText);
+  } finally {
+    copy.free();
+  }
+} finally {
+  note.free();
+}
 ```
 
-`format_note` delegates to the core's `Note::new` and `Display` implementation.
-It emits `tornado-{symbol}-{amount}-{chainId}-0x{preimage}`, with lowercase hex
-and the nullifier's 31 bytes followed by the secret's 31 bytes. The amount text
-is preserved. Formatting a parsed note normalizes the hex prefix/case and the
-decimal chain ID spelling.
+All methods run synchronously. `parse` calls the core parser once; the constructor
+converts structured input once and calls the core's `Note::new`. Methods borrow
+that stored note with `&self`. `free()` releases the Rust object; methods must
+not be called afterward. Releasing one note leaves other notes usable.
+`wasm-bindgen` also supplies automatic cleanup through `FinalizationRegistry`
+where available, but explicit cleanup makes the lifetime predictable.
 
-The adapter takes `Ts<ParsedNote>` and calls `note.to_rust()?`. Deserialization
-checks that fields can be represented by the Rust types, including exactly
-31 bytes per secret and a chain ID in the `u64` range. Conversion errors become
-JavaScript `Error` exceptions. The core constructor and formatter add no symbol
-or amount validation, so arbitrary strings supplied directly may produce text
-that the core parser cannot read back.
+`toObject()` returns a plain object with independent copies of the fields,
+including the original nullifier and secret bytes. Modifying the constructor's
+input or an exported object does not mutate the stored note. Each byte array
+has length 31 and preserves the core's byte order. The amount remains text;
+chain IDs use `bigint` to preserve the entire `u64` range.
 
-In this direction, `Deserialize` handles JS-to-Rust conversion and `Tsify`
-provides the TypeScript input type. The core still builds and formats the note.
+`toString()` delegates to the core's `Display` implementation and emits
+`tornado-{symbol}-{amount}-{chainId}-0x{preimage}`: lowercase hex containing the
+nullifier's 31 bytes followed by the secret's 31 bytes. Parsing and formatting
+normalize the hex prefix/case and decimal chain ID spelling.
+
+Both hash methods return `0x` followed by 64 lowercase hexadecimal digits
+(32 bytes, most significant byte first). Commitment depends on the nullifier
+and secret; nullifier hash depends only on the nullifier. Neither uses metadata.
+These operations do not check on-chain deposits or spent status.
+
+Parsing retains the core's rules, including optional `0x` and no whitespace
+trimming. The constructor checks representable Rust types, including 31-byte
+arrays and chain IDs in the `u64` range. Conversion and parsing failures throw
+JavaScript `Error` objects. No symbol or amount validation is added: arbitrary
+strings supplied to the constructor may produce text the parser cannot read back.
+
+### Generated types and conversions
+
+`wasm-bindgen` generates the class, its methods and their declarations.
+`ParsedNote` is the data transfer type generated by tsify, used by the constructor
+and `toObject()`:
+
+- `#[wasm_bindgen(js_name = Note)]` names the exported class; the matching
+  `#[wasm_bindgen(js_class = Note)]` attaches its methods.
+- `#[wasm_bindgen(constructor)]` exposes Rust `new` as the JS constructor.
+- `#[wasm_bindgen(js_name = ...)]` gives methods their JS camelCase names.
+- `Serialize` and `Deserialize` support Rust-to-JS and JS-to-Rust data conversion.
+- `Tsify` generates the `ParsedNote` TypeScript interface.
+- `#[serde(rename_all = "camelCase")]` maps `chain_id` to `chainId`.
+- `#[tsify(large_number_types_as_bigints)]` represents `u64` as `bigint`.
+- `#[serde(with = "serde_bytes")]` serializes bytes as `Uint8Array`;
+  `#[tsify(type = "Uint8Array")]` declares that representation in TypeScript.
+- `Ts<ParsedNote>` carries typed JS data across the boundary. `to_rust()?` and
+  `into_ts()?` perform fallible conversions inside the adapter.
+
+This replaces the earlier free functions (`parse_note`, `format_note`,
+`note_commitment`, `note_nullifier_hash`). The Rust core remains unchanged.
 
 ## Build and run in Node
 
@@ -131,7 +132,7 @@ TORNADOCASH_WASM_MODULE=crates/target/tornadocash-wasm-node/kohaku_tornadocash_w
 The last command checks the generated JS/WASM boundary with synthetic notes:
 fixed-width hex output, JavaScript exceptions, nullifier-hash behavior, parsed
 fields and byte order, exact `bigint` values across the `u64` range, formatting
-round trips, and invalid structured inputs. It does not establish parity with
+round trips, invalid structured inputs, independent snapshots, and object lifetimes. It does not establish parity with
 the TS SDK or validate browser execution.
 
 After generating the bindings, check a TypeScript consumer against the generated
@@ -139,14 +140,17 @@ declarations locally:
 
 ```sh
 npm exec --yes --package=typescript@7.0.2 -- tsc --noEmit --strict \
-  --target ES2020 --module Node16 crates/tornadocash-wasm/tests/*.types.ts
+  --target ES2020 --lib ES2020,ESNext.Disposable --module Node16 crates/tornadocash-wasm/tests/*.types.ts
 ```
+
+`ESNext.Disposable` supplies the types for the `[Symbol.dispose]()` method
+that wasm-bindgen also generates for the class.
 
 These compile-only fixtures verify result and input types, and reject `number`
 chain IDs, ordinary arrays for secret bytes, missing fields, and the Rust
 `chain_id` spelling.
 
-The test uses `.cjs` because `--target nodejs` generates a CommonJS module.
+The test uses `.cjs` because `--target nodejs` generates a `CommonJS` module.
 It exercises the generated JavaScript API, including thrown `Error` objects.
 The core already has Rust tests for note encoding/decoding and a Pedersen hash
 vector. New Rust conversion logic should receive Rust tests when introduced;
