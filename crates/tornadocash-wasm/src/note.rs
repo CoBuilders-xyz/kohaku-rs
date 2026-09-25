@@ -1,4 +1,8 @@
 use kohaku_tornadocash::note::Note as CoreNote;
+use rand::{
+    SeedableRng,
+    rngs::{StdRng, SysRng},
+};
 use serde::{Deserialize, Serialize};
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
@@ -44,6 +48,21 @@ impl Note {
                 data.amount,
                 data.chain_id,
             ),
+        })
+    }
+
+    /// Generate a fresh note using the environment's cryptographic randomness.
+    ///
+    /// # Errors
+    ///
+    /// Throws a JavaScript `Error` if the chain ID is not a `bigint` in the
+    /// `u64` range or the environment cannot provide a secure random seed.
+    pub fn random(symbol: &str, amount: &str, chain_id: js_sys::BigInt) -> Result<Note, JsError> {
+        let chain_id = u64::try_from(chain_id)
+            .map_err(|_| JsError::new("chainId must be a bigint in the u64 range"))?;
+        let mut rng = StdRng::try_from_rng(&mut SysRng)?;
+        Ok(Self {
+            inner: CoreNote::random(symbol, amount, chain_id, &mut rng),
         })
     }
 

@@ -3170,7 +3170,10 @@ dependencies = [
 name = "kohaku-tornadocash-wasm"
 version = "0.1.0"
 dependencies = [
+ "getrandom 0.4.3",
+ "js-sys",
  "kohaku-tornadocash",
+ "rand 0.10.2",
  "serde",
  "serde_bytes",
  "tsify",

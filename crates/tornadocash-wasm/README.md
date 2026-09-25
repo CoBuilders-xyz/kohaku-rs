@@ -18,6 +18,7 @@ The generated API includes:
 ```ts
 export class Note {
   constructor(data: NoteData);
+  static random(symbol: string, amount: string, chainId: bigint): Note;
   static parse(text: string): Note;
   toObject(): NoteData;
   toString(): string;
@@ -92,6 +93,37 @@ trimming. The constructor checks representable Rust types, including 31-byte
 arrays and chain IDs in the `u64` range. Conversion and parsing failures throw
 JavaScript `Error` objects. No symbol or amount validation is added: arbitrary
 strings supplied to the constructor may produce text the parser cannot read back.
+
+### Generating a random note
+
+```ts
+const note = Note.random('eth', '0.1', 1n);
+try {
+  const text = note.toString();
+} finally {
+  note.free();
+}
+```
+
+The adapter seeds Rust's `StdRng` from `SysRng` with
+`StdRng::try_from_rng(&mut SysRng)?`, then passes that generator to
+`CoreNote::random`. The core generates the nullifier and secret; the JS caller
+supplies only metadata. The generator is local to each call.
+
+On WASM, `getrandom` uses `globalThis.crypto.getRandomValues()` to obtain the
+seed. The crate explicitly enables its `wasm_js` feature. This requires Web
+Crypto in the host (browsers and Node.js 19+); if it is unavailable or fails,
+the adapter throws a JavaScript `Error`. It does not fall back to an insecure
+source. The generator is discarded after constructing the note.
+
+The chain ID crosses the boundary as `js_sys::BigInt` and is checked with
+`u64::try_from`: negative values, values above `u64::MAX`, and non-bigint inputs
+throw rather than being truncated. The generated TypeScript parameter is
+`bigint`. Symbol and amount keep the core's existing behavior.
+
+Runtime tests cover generation, formatting round trips, exact chain IDs, and
+missing/failing Web Crypto with recovery afterward. These are integration
+checks, not a statistical assessment of the random generator.
 
 ### Generated types and conversions
 
