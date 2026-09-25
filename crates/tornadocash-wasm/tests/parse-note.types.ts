@@ -20,6 +20,12 @@ note.chain_id;
 const commitment: string = instance.commitment();
 const nullifierHash: string = instance.nullifierHash();
 const text: string = instance.toString();
+const preimage: Uint8Array = instance.preimage();
+
+// @ts-expect-error Preimage returns a typed array, not a hex string or any.
+const preimageHex: string = instance.preimage();
+// @ts-expect-error Preimage bytes are not an ordinary number array.
+const preimageArray: number[] = instance.preimage();
 
 // @ts-expect-error Parsing accepts text, not structured data.
 Note.parse(parsed);

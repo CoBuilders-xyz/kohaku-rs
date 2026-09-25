@@ -82,6 +82,12 @@ impl Note {
         self.inner.to_string()
     }
 
+    /// Return a copy of the 62-byte preimage: nullifier followed by secret.
+    #[must_use]
+    pub fn preimage(&self) -> Vec<u8> {
+        self.inner.preimage().to_vec()
+    }
+
     /// Compute the commitment as `0x` followed by 64 lowercase hex digits.
     #[must_use]
     pub fn commitment(&self) -> String {

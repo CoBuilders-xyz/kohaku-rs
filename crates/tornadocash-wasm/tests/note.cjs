@@ -8,6 +8,25 @@ if (!process.env.TORNADOCASH_WASM_MODULE) {
 const { Note } = require(resolve(process.env.TORNADOCASH_WASM_MODULE));
 const preimage = '01'.repeat(31) + '02'.repeat(31);
 
+test('Note.preimage returns an independent Uint8Array in core byte order', (t) => {
+  const expected = Uint8Array.from({ length: 62 }, (_, i) => (i * 17) % 256);
+  const text = `tornado-eth-1-1-0x${Buffer.from(expected).toString('hex')}`;
+  const note = Note.parse(text);
+  t.after(() => note.free());
+
+  const bytes = note.preimage();
+  assert.ok(bytes instanceof Uint8Array);
+  assert.equal(bytes.length, 62);
+  assert.deepEqual(bytes, expected);
+  const data = note.toObject();
+  assert.deepEqual(bytes.slice(0, 31), data.nullifier);
+  assert.deepEqual(bytes.slice(31), data.secret);
+
+  bytes.fill(0);
+  assert.deepEqual(note.preimage(), expected);
+  assert.equal(note.toString(), text);
+});
+
 for (const method of ['commitment', 'nullifierHash']) {
   test(`Note.${method} returns a 32-byte lowercase hex string`, (t) => {
     const note = Note.parse(`tornado-eth-1-1-0x${preimage}`);
@@ -40,12 +59,14 @@ test('two notes coexist in one WASM module and can be freed independently', (t) 
   const firstHash = first.commitment();
   const secondHash = second.commitment();
   const snapshot = first.toObject();
+  const bytes = first.preimage();
   assert.notEqual(firstHash, secondHash);
   first.free();
-  for (const method of ['toObject', 'toString', 'commitment', 'nullifierHash']) {
+  for (const method of ['toObject', 'toString', 'preimage', 'commitment', 'nullifierHash']) {
     assert.throws(() => first[method](), Error);
   }
   assert.equal(second.commitment(), secondHash);
+  assert.equal(Buffer.from(bytes).toString('hex'), preimage);
   assert.deepEqual(snapshot.nullifier, new Uint8Array(31).fill(1));
   assert.deepEqual(snapshot.secret, new Uint8Array(31).fill(2));
 });

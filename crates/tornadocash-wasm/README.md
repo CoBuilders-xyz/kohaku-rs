@@ -21,6 +21,7 @@ export class Note {
   static parse(text: string): Note;
   toObject(): NoteData;
   toString(): string;
+  preimage(): Uint8Array;
   commitment(): string;
   nullifierHash(): string;
   free(): void;
@@ -43,6 +44,7 @@ try {
   const commitment = note.commitment();
   const nullifierHash = note.nullifierHash();
   const canonicalText = note.toString();
+  const preimage = note.preimage();
   const fields = note.toObject();
 
   const copy = new Note(fields);
@@ -73,6 +75,12 @@ chain IDs use `bigint` to preserve the entire `u64` range.
 `tornado-{symbol}-{amount}-{chainId}-0x{preimage}`: lowercase hex containing the
 nullifier's 31 bytes followed by the secret's 31 bytes. Parsing and formatting
 normalize the hex prefix/case and decimal chain ID spelling.
+
+`preimage()` delegates to the core and returns an independent `Uint8Array` of
+62 bytes: nullifier first, then secret. The adapter converts the core's
+`[u8; 62]` to `Vec<u8>`, which wasm-bindgen converts to `Uint8Array` and declares
+in TypeScript without tsify. Modifying the array does not mutate the note,
+and the array remains usable after freeing the note.
 
 Both hash methods return `0x` followed by 64 lowercase hexadecimal digits
 (32 bytes, most significant byte first). Commitment depends on the nullifier
