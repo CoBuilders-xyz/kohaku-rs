@@ -3,7 +3,8 @@ use rand::{
     SeedableRng,
     rngs::{StdRng, SysRng},
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de::Error};
+use tsify::serde_wasm_bindgen::preserve;
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 
@@ -14,13 +15,39 @@ use wasm_bindgen::prelude::*;
 pub struct NoteData {
     pub symbol: String,
     pub amount: String,
+    #[serde(deserialize_with = "deserialize_chain_id")]
     pub chain_id: u64,
-    #[serde(with = "serde_bytes")]
+    #[serde(
+        serialize_with = "serde_bytes::serialize",
+        deserialize_with = "deserialize_bytes31"
+    )]
     #[tsify(type = "Uint8Array")]
     pub nullifier: [u8; 31],
-    #[serde(with = "serde_bytes")]
+    #[serde(
+        serialize_with = "serde_bytes::serialize",
+        deserialize_with = "deserialize_bytes31"
+    )]
     #[tsify(type = "Uint8Array")]
     pub secret: [u8; 31],
+}
+
+// Preserve each JS value until its type is checked, before Serde can coerce it.
+fn deserialize_chain_id<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u64, D::Error> {
+    let value: JsValue = preserve::deserialize(deserializer)?;
+    u64::try_from(value).map_err(|_| D::Error::custom("chainId must be a bigint in the u64 range"))
+}
+
+fn deserialize_bytes31<'de, D: Deserializer<'de>>(deserializer: D) -> Result<[u8; 31], D::Error> {
+    let value: JsValue = preserve::deserialize(deserializer)?;
+    let bytes = value
+        .dyn_into::<js_sys::Uint8Array>()
+        .map_err(|_| D::Error::custom("secret bytes must be a Uint8Array"))?;
+    if bytes.length() != 31 {
+        return Err(D::Error::custom("secret bytes must have length 31"));
+    }
+    let mut result = [0; 31];
+    bytes.copy_to(&mut result);
+    Ok(result)
 }
 
 /// A Tornado note stored in WASM memory until its JavaScript wrapper is freed.
@@ -35,8 +62,8 @@ impl Note {
     ///
     /// # Errors
     ///
-    /// Throws a JavaScript `Error` if fields cannot be converted to Rust,
-    /// including secret lengths other than 31 or a chain ID outside `u64`.
+    /// Throws a JavaScript `Error` if fields cannot be converted to Rust.
+    /// Secrets must be 31-byte `Uint8Array`s and the chain ID a `bigint` in `u64`.
     #[wasm_bindgen(constructor)]
     pub fn new(data: &Ts<NoteData>) -> Result<Note, JsError> {
         let data = data.to_rust()?;

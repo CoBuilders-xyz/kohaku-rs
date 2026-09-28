@@ -63,10 +63,14 @@ test('Note constructor rejects invalid structured inputs with JavaScript Errors'
     { ...fields, chainId: -1n },
     { ...fields, chainId: 18446744073709551616n },
     { ...fields, chainId: 1.5 },
+    ...[1, 9007199254740992, '1', null, undefined].map(chainId => ({ ...fields, chainId })),
     { ...fields, nullifier: new Uint8Array(30) },
     { ...fields, nullifier: new Uint8Array(32) },
     { ...fields, secret: new Uint8Array(30) },
     { ...fields, secret: new Uint8Array(32) },
+    ...['nullifier', 'secret'].flatMap(field =>
+      [Array(31).fill(0), new ArrayBuffer(31), new DataView(new ArrayBuffer(31)), new Uint16Array(31)]
+        .map(value => ({ ...fields, [field]: value }))),
   ];
   for (const note of invalid) {
     assert.throws(() => new Note(note), Error);
@@ -75,6 +79,20 @@ test('Note constructor rejects invalid structured inputs with JavaScript Errors'
   const note = new Note(fields);
   t.after(() => note.free());
   assert.equal(note.toString(), `tornado-eth-0.10-1-0x${preimage}`);
+});
+
+test('Note constructor copies only the selected Uint8Array view', (t) => {
+  const buffer = new Uint8Array(100).fill(99);
+  buffer.set(fields.nullifier, 7);
+  buffer.set(fields.secret, 50);
+  const note = new Note({
+    ...fields,
+    nullifier: buffer.subarray(7, 38),
+    secret: buffer.subarray(50, 81),
+  });
+  t.after(() => note.free());
+  buffer.fill(0);
+  assert.deepEqual(note.toObject(), fields);
 });
 
 test('Note owns its data and toObject returns independent snapshots', (t) => {

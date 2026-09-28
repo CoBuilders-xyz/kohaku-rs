@@ -7,6 +7,24 @@ if (!process.env.TORNADOCASH_WASM_MODULE) {
 }
 const { Note } = require(resolve(process.env.TORNADOCASH_WASM_MODULE));
 const preimage = '01'.repeat(31) + '02'.repeat(31);
+const { vectors } = require('./fixtures/note-vectors.json');
+
+for (const vector of vectors) {
+  test(`Note hashes match circomlibjs: ${vector.name}`, (t) => {
+    const constructed = new Note({
+      symbol: 'eth', amount: '1', chainId: 1n,
+      nullifier: Uint8Array.from(Buffer.from(vector.nullifier, 'hex')),
+      secret: Uint8Array.from(Buffer.from(vector.secret, 'hex')),
+    });
+    t.after(() => constructed.free());
+    const parsed = Note.parse(`tornado-eth-1-1-0x${vector.nullifier}${vector.secret}`);
+    t.after(() => parsed.free());
+    for (const note of [constructed, parsed]) {
+      assert.equal(note.commitment(), vector.commitment);
+      assert.equal(note.nullifierHash(), vector.nullifierHash);
+    }
+  });
+}
 
 test('Note.preimage returns an independent Uint8Array in core byte order', (t) => {
   const expected = Uint8Array.from({ length: 62 }, (_, i) => (i * 17) % 256);

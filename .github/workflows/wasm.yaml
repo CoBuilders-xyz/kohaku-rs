@@ -16,7 +16,7 @@ env:
 
 jobs:
   bindings:
-    name: Tornado bindings (Node)
+    name: Tornado bindings (Node and Chromium)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -58,3 +58,18 @@ jobs:
         run: >-
           npm exec --yes --package=typescript@7.0.2 -- tsc --noEmit --strict
           --target ES2020 --lib ES2020,ESNext.Disposable --module Node16 crates/tornadocash-wasm/tests/*.types.ts
+
+      - name: Generate browser bindings
+        run: >-
+          wasm-bindgen crates/target/wasm32-unknown-unknown/debug/kohaku_tornadocash_wasm.wasm
+          --target web --out-dir crates/target/tornadocash-wasm-web
+
+      - name: Install browser test dependencies
+        run: npm ci --prefix crates/tornadocash-wasm/tests/browser
+
+      - name: Install Chromium
+        working-directory: crates/tornadocash-wasm/tests/browser
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: Test browser API
+        run: npm test --prefix crates/tornadocash-wasm/tests/browser

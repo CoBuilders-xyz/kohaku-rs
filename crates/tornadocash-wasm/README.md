@@ -89,8 +89,9 @@ and secret; nullifier hash depends only on the nullifier. Neither uses metadata.
 These operations do not check on-chain deposits or spent status.
 
 Parsing retains the core's rules, including optional `0x` and no whitespace
-trimming. The constructor checks representable Rust types, including 31-byte
-arrays and chain IDs in the `u64` range. Conversion and parsing failures throw
+trimming. The constructor requires 31-byte `Uint8Array`s and `bigint` chain IDs
+in the `u64` range, matching its TypeScript declaration. Plain arrays and
+`number` chain IDs are rejected at runtime as well. Conversion and parsing failures throw
 JavaScript `Error` objects. No symbol or amount validation is added: arbitrary
 strings supplied to the constructor may produce text the parser cannot read back.
 
@@ -139,8 +140,12 @@ and `toObject()`:
 - `Tsify` generates the `NoteData` TypeScript interface.
 - `#[serde(rename_all = "camelCase")]` maps `chain_id` to `chainId`.
 - `#[tsify(large_number_types_as_bigints)]` represents `u64` as `bigint`.
-- `#[serde(with = "serde_bytes")]` serializes bytes as `Uint8Array`;
+- `#[serde(serialize_with = "serde_bytes::serialize")]` serializes bytes as `Uint8Array`;
   `#[tsify(type = "Uint8Array")]` declares that representation in TypeScript.
+- Custom `deserialize_with` functions inspect the original JS values through
+  `serde_wasm_bindgen::preserve`, require `bigint` and `Uint8Array`, check their
+  range/length, then convert them to Rust values. This prevents Serde from
+  silently accepting `number` or plain array inputs that the declarations reject.
 - `Ts<NoteData>` carries typed JS data across the boundary. `to_rust()?` and
   `into_ts()?` perform fallible conversions inside the adapter.
 
@@ -173,8 +178,9 @@ TORNADOCASH_WASM_MODULE=crates/target/tornadocash-wasm-node/kohaku_tornadocash_w
 The last command checks the generated JS/WASM boundary with synthetic notes:
 fixed-width hex output, JavaScript exceptions, nullifier-hash behavior, parsed
 fields and byte order, exact `bigint` values across the `u64` range, formatting
-round trips, invalid structured inputs, independent snapshots, and object lifetimes. It does not establish parity with
-the TS SDK or validate browser execution.
+round trips, invalid structured inputs, independent snapshots, and object lifetimes.
+Both hashes are also checked against fixed vectors produced independently with
+`circomlibjs@0.1.7`. Browser execution is tested separately below.
 
 After generating the bindings, check a TypeScript consumer against the generated
 declarations locally:
@@ -197,6 +203,57 @@ The core already has Rust tests for note encoding/decoding and a Pedersen hash
 vector. New Rust conversion logic should receive Rust tests when introduced;
 tests that construct JavaScript values or errors need a WASM runtime, for
 example through `wasm-bindgen-test`, rather than ordinary native `cargo test`.
+The constructor's JS-specific deserializers are covered by the Node and browser tests.
+
+## Test in a browser
+
+After building the WASM file, run from the repository root:
+
+```sh
+wasm-bindgen crates/target/wasm32-unknown-unknown/debug/kohaku_tornadocash_wasm.wasm \
+  --target web --out-dir crates/target/tornadocash-wasm-web
+
+npm ci --prefix crates/tornadocash-wasm/tests/browser
+(cd crates/tornadocash-wasm/tests/browser && npx --no-install playwright install chromium)
+npm test --prefix crates/tornadocash-wasm/tests/browser
+```
+
+Playwright opens headless Chromium against a temporary localhost HTTP server.
+The tests load the generated ES module and WASM, check structured input/output
+and reference hashes, reject invalid input, and exercise Web Crypto failure and
+recovery. Test code and its npm dependencies live under `tests/browser`; this is
+test tooling, not an SDK package. Build outputs remain under `crates/target`.
+
+To use an already installed Chromium instead of downloading one, skip the
+Playwright browser installation and run:
+
+```sh
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium \
+  npm test --prefix crates/tornadocash-wasm/tests/browser
+```
+
+### Reference hash vectors
+
+`tests/fixtures/note-vectors.json` contains synthetic nullifiers/secrets and their
+expected commitment and nullifier hash. The independent reference is
+[circomlibjs's Pedersen implementation](https://github.com/iden3/circomlibjs/blob/v0.1.7/src/pedersen_hash.js):
+hash the 62-byte preimage or 31-byte nullifier, unpack the BabyJubJub point, and
+encode its x-coordinate as a 32-byte hex string. The vectors include repeated,
+ordered and zero bytes, including hashes requiring leading-zero padding.
+
+To reproduce them for review (this is not part of the test run):
+
+```sh
+npm install --prefix crates/target/note-vector-reference --ignore-scripts --no-audit --no-fund circomlibjs@0.1.7
+node crates/tornadocash-wasm/tests/fixtures/generate-note-vectors.cjs \
+  crates/target/note-vector-reference/node_modules/circomlibjs \
+  > crates/target/note-vectors.json
+diff -u crates/tornadocash-wasm/tests/fixtures/note-vectors.json crates/target/note-vectors.json
+```
+
+Tests read the checked-in values; they never regenerate expected hashes from
+the implementation under test. These vectors cover note hashing, not parity
+with every feature of the TS SDK.
 
 ## CI
 
@@ -204,10 +261,12 @@ The `WASM` workflow runs on pull requests targeting `master`, pushes to `master`
 and manual dispatch. It builds the WASM library, generates the Node bindings,
 and runs every `tests/*.cjs` file with Node's test runner. It then checks all
 `tests/*.types.ts` consumers against the generated declarations with
-`tsc --noEmit --strict`. A build, generation, runtime test, or type-check failure
+`tsc --noEmit --strict`. It also generates the `web` target and runs the Chromium
+tests with Playwright. A build, generation, runtime test, or type-check failure
 fails the job. This check runs separately from the native Rust CI.
 
-CI uses Rust 1.98.1, Node 26.8.1, wasm-bindgen CLI 0.2.108, and TypeScript 7.0.2.
+CI uses Rust 1.98.1, Node 26.8.1, wasm-bindgen CLI 0.2.108, TypeScript 7.0.2,
+and Playwright 1.63.0 with its matching Chromium.
 When updating the wasm-bindgen dependency, update the CLI version in the workflow
 as well.
 
