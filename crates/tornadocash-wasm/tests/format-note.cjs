@@ -54,26 +54,29 @@ test('Note retains the core constructor and formatter metadata behavior', (t) =>
 test('Note constructor rejects invalid structured inputs with JavaScript Errors', (t) => {
   const { secret, ...missingSecret } = fields;
   const invalid = [
-    undefined,
-    null,
-    'not an object',
-    missingSecret,
-    { ...fields, symbol: 1 },
-    { ...fields, amount: 0.1 },
-    { ...fields, chainId: -1n },
-    { ...fields, chainId: 18446744073709551616n },
-    { ...fields, chainId: 1.5 },
-    ...[1, 9007199254740992, '1', null, undefined].map(chainId => ({ ...fields, chainId })),
-    { ...fields, nullifier: new Uint8Array(30) },
-    { ...fields, nullifier: new Uint8Array(32) },
-    { ...fields, secret: new Uint8Array(30) },
-    { ...fields, secret: new Uint8Array(32) },
+    ['undefined input', undefined],
+    ['null input', null],
+    ['string input', 'not an object'],
+    ['missing secret', missingSecret],
+    ['numeric symbol', { ...fields, symbol: 1 }],
+    ['numeric amount', { ...fields, amount: 0.1 }],
+    ['negative chainId', { ...fields, chainId: -1n }],
+    ['chainId above u64', { ...fields, chainId: 18446744073709551616n }],
+    ['fractional chainId', { ...fields, chainId: 1.5 }],
+    ...[1, 9007199254740992, '1', null, undefined].map(chainId =>
+      [`chainId ${typeof chainId}: ${String(chainId)}`, { ...fields, chainId }]),
     ...['nullifier', 'secret'].flatMap(field =>
-      [Array(31).fill(0), new ArrayBuffer(31), new DataView(new ArrayBuffer(31)), new Uint16Array(31)]
-        .map(value => ({ ...fields, [field]: value }))),
+      [
+        ['30 bytes', new Uint8Array(30)],
+        ['32 bytes', new Uint8Array(32)],
+        ['plain array', Array(31).fill(0)],
+        ['ArrayBuffer', new ArrayBuffer(31)],
+        ['DataView', new DataView(new ArrayBuffer(31))],
+        ['Uint16Array', new Uint16Array(31)],
+      ].map(([name, value]) => [`${field}: ${name}`, { ...fields, [field]: value }])),
   ];
-  for (const note of invalid) {
-    assert.throws(() => new Note(note), Error);
+  for (const [name, data] of invalid) {
+    assert.throws(() => new Note(data), Error, name);
   }
   // A failed conversion must leave the WASM module usable.
   const note = new Note(fields);

@@ -50,15 +50,15 @@ test('Note.parse keeps core parsing behavior for optional hex prefix and metadat
 
 test('Note.parse exposes core parsing failures as JavaScript Errors', () => {
   const cases = [
-    ['', 'invalid note format'],
-    [` tornado-eth-1-1-0x${preimage}`, 'invalid note format'],
-    [`tornado-eth-1-invalid-0x${preimage}`, 'invalid chain id'],
-    [`tornado-eth-1-18446744073709551616-0x${preimage}`, 'invalid chain id'],
-    ['tornado-eth-1-1-0x00', 'invalid note format'],
-    [`tornado-eth-1-1-0x${'ff'.repeat(63)}`, 'invalid note format'],
-    [`tornado-eth-1-1-0x${'zz'.repeat(62)}`, /invalid hex/],
+    ['empty text', '', 'invalid note format'],
+    ['leading whitespace', ` tornado-eth-1-1-0x${preimage}`, 'invalid note format'],
+    ['invalid chainId', `tornado-eth-1-invalid-0x${preimage}`, 'invalid chain id'],
+    ['chainId above u64', `tornado-eth-1-18446744073709551616-0x${preimage}`, 'invalid chain id'],
+    ['short preimage', 'tornado-eth-1-1-0x00', 'invalid note format'],
+    ['long preimage', `tornado-eth-1-1-0x${'ff'.repeat(63)}`, 'invalid note format'],
+    ['invalid hex', `tornado-eth-1-1-0x${'zz'.repeat(62)}`, /invalid hex/],
   ];
-  for (const [note, message] of cases) {
-    assert.throws(() => Note.parse(note), { name: 'Error', message });
+  for (const [name, note, message] of cases) {
+    assert.throws(() => Note.parse(note), { name: 'Error', message }, name);
   }
 });

@@ -46,16 +46,20 @@ test('Note.random rejects invalid chain IDs instead of truncating them', () => {
     assert.throws(() => Note.random('eth', '1', chainId), {
       name: 'Error',
       message: 'chainId must be a bigint in the u64 range',
-    });
+    }, `chainId ${typeof chainId}: ${String(chainId)}`);
   }
 });
 
 test('Note.random throws if Web Crypto is absent or fails, and recovers afterward', (t) => {
   const original = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
   try {
-    for (const crypto of [undefined, { getRandomValues() { throw new Error('unavailable'); } }]) {
+    const cases = [
+      ['missing Web Crypto', undefined],
+      ['failing Web Crypto', { getRandomValues() { throw new Error('unavailable'); } }],
+    ];
+    for (const [name, crypto] of cases) {
       Object.defineProperty(globalThis, 'crypto', { configurable: true, value: crypto });
-      assert.throws(() => Note.random('eth', '1', 1n), Error);
+      assert.throws(() => Note.random('eth', '1', 1n), Error, name);
     }
   } finally {
     Object.defineProperty(globalThis, 'crypto', original);

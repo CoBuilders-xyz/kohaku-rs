@@ -1,19 +1,14 @@
 # kohaku-tornadocash-wasm
 
-WebAssembly binding crate for `kohaku-tornadocash`.
+WebAssembly bindings for the Rust `kohaku-tornadocash` core. The crate builds
+an `rlib` and a `cdylib`; wasm-bindgen generates the JavaScript and TypeScript
+files. SDK and Worker integration are separate work.
 
-This crate depends on the Rust Tornadocash core and `wasm-bindgen`, and builds
-both an `rlib` and a `cdylib`.
+## Note API
 
-## Note class
-
-Bindings live in `src/note.rs`; `src/lib.rs` declares the module and reexports
-`Note` and `NoteData`. The core type is imported locally as `CoreNote` to
-distinguish it from the exported `Note` wrapper.
-Each wrapper owns a core Rust `Note` in the loaded WASM instance. Multiple notes
-share that instance; creating a note does not start another WASM instance or Worker.
-
-The generated API includes:
+`src/note.rs` defines `Note`, which owns a core Rust note, and `NoteData`, the
+plain object used to exchange its fields with JavaScript. `src/lib.rs` reexports
+both types. The generated API includes:
 
 ```ts
 export class Note {
@@ -37,65 +32,59 @@ export interface NoteData {
 }
 ```
 
-Use the same object for successive operations, then release it:
+All operations run synchronously and delegate to the stored core note. Multiple
+notes share the loaded WASM instance. Release each note after use:
 
 ```ts
 const note = Note.parse(originalText);
 try {
   const commitment = note.commitment();
-  const nullifierHash = note.nullifierHash();
-  const canonicalText = note.toString();
-  const preimage = note.preimage();
   const fields = note.toObject();
-
-  const copy = new Note(fields);
-  try {
-    console.log(copy.toString() === canonicalText);
-  } finally {
-    copy.free();
-  }
 } finally {
   note.free();
 }
 ```
 
-All methods run synchronously. `parse` calls the core parser once; the constructor
-converts structured input once and calls the core's `Note::new`. Methods borrow
-that stored note with `&self`. `free()` releases the Rust object; methods must
-not be called afterward. Releasing one note leaves other notes usable.
-`wasm-bindgen` also supplies automatic cleanup through `FinalizationRegistry`
+`free()` releases the Rust object; methods must not be called afterward.
+Releasing one note leaves other notes usable. wasm-bindgen also provides
+`[Symbol.dispose]()` and automatic cleanup through `FinalizationRegistry`
 where available, but explicit cleanup makes the lifetime predictable.
 
-`toObject()` returns a plain object with independent copies of the fields,
-including the original nullifier and secret bytes. Modifying the constructor's
-input or an exported object does not mutate the stored note. Each byte array
-has length 31 and preserves the core's byte order. The amount remains text;
-chain IDs use `bigint` to preserve the entire `u64` range.
+### Data and conversions
 
-`toString()` delegates to the core's `Display` implementation and emits
-`tornado-{symbol}-{amount}-{chainId}-0x{preimage}`: lowercase hex containing the
-nullifier's 31 bytes followed by the secret's 31 bytes. Parsing and formatting
-normalize the hex prefix/case and decimal chain ID spelling.
+- The constructor copies its input. `toObject()` returns a plain object with
+  independent copies of the fields, including the original secret bytes.
+- `chainId` must be a `bigint` in the `u64` range. `nullifier` and `secret` must
+  each be a `Uint8Array` of exactly 31 bytes. Plain arrays and `number` chain IDs
+  are rejected at runtime. Conversion and parsing failures throw JS `Error`s.
+- Byte validation uses the current JS context's `Uint8Array` constructor. Arrays
+  created in another context, such as an iframe or Node's `vm`, are not supported
+  directly. Copy them with the receiving context's `Uint8Array.from(bytes)` first.
+- Symbol and amount remain strings with the core's existing behavior. No extra
+  metadata validation is added; arbitrary strings may produce text that cannot
+  be parsed back.
+- `toString()` uses the core's legacy format:
+  `tornado-{symbol}-{amount}-{chainId}-0x{preimage}`. Parsing accepts an optional
+  `0x` prefix and does not trim whitespace. Formatting emits lowercase hex and
+  canonical decimal chain IDs while preserving the amount text.
+- `preimage()` returns a copy of 62 bytes: nullifier first, then secret.
+  Snapshots and preimages remain usable after freeing the note; modifying them
+  does not change the stored note.
+- Both hashes are `0x` followed by 64 lowercase hex digits (most significant byte
+  first). Commitment depends on nullifier and secret; nullifier hash depends only
+  on nullifier. Neither uses metadata or checks deposits or spent status.
 
-`preimage()` delegates to the core and returns an independent `Uint8Array` of
-62 bytes: nullifier first, then secret. The adapter converts the core's
-`[u8; 62]` to `Vec<u8>`, which wasm-bindgen converts to `Uint8Array` and declares
-in TypeScript without tsify. Modifying the array does not mutate the note,
-and the array remains usable after freeing the note.
+wasm-bindgen exports the class, methods and primitive return types. Serde handles
+structured conversion, and tsify generates the `NoteData` interface. The adapter
+uses `Ts<NoteData>` with explicit, fallible `to_rust()` / `into_ts()` conversions.
 
-Both hash methods return `0x` followed by 64 lowercase hexadecimal digits
-(32 bytes, most significant byte first). Commitment depends on the nullifier
-and secret; nullifier hash depends only on the nullifier. Neither uses metadata.
-These operations do not check on-chain deposits or spent status.
+Serde annotations map `chain_id` to `chainId`; tsify represents `u64` as `bigint`.
+`serde_bytes::serialize` produces typed byte arrays, declared as `Uint8Array` via
+tsify. Custom deserializers preserve the incoming JS values, check their type
+and range/length, then copy them into Rust. Requiring these specific JS types is
+an API choice; Serde's default conversion also accepts some other representations.
 
-Parsing retains the core's rules, including optional `0x` and no whitespace
-trimming. The constructor requires 31-byte `Uint8Array`s and `bigint` chain IDs
-in the `u64` range, matching its TypeScript declaration. Plain arrays and
-`number` chain IDs are rejected at runtime as well. Conversion and parsing failures throw
-JavaScript `Error` objects. No symbol or amount validation is added: arbitrary
-strings supplied to the constructor may produce text the parser cannot read back.
-
-### Generating a random note
+### Random generation
 
 ```ts
 const note = Note.random('eth', '0.1', 1n);
@@ -106,108 +95,54 @@ try {
 }
 ```
 
-The adapter seeds Rust's `StdRng` from `SysRng` with
-`StdRng::try_from_rng(&mut SysRng)?`, then passes that generator to
-`CoreNote::random`. The core generates the nullifier and secret; the JS caller
-supplies only metadata. The generator is local to each call.
+The adapter seeds `StdRng` with `StdRng::try_from_rng(&mut SysRng)?` and passes it
+to `CoreNote::random`. The core generates the nullifier and secret; the caller
+supplies only metadata. The generator is discarded after each call.
 
-On WASM, `getrandom` uses `globalThis.crypto.getRandomValues()` to obtain the
-seed. The crate explicitly enables its `wasm_js` feature. This requires Web
-Crypto in the host (browsers and Node.js 19+); if it is unavailable or fails,
-the adapter throws a JavaScript `Error`. It does not fall back to an insecure
-source. The generator is discarded after constructing the note.
+On WASM, `getrandom`'s `wasm_js` feature obtains the seed through
+`globalThis.crypto.getRandomValues()`. The host must provide Web Crypto; an absent
+or failing source throws a JS `Error`, with no insecure fallback. `random()`
+checks the chain ID with `u64::try_from` to reject invalid types and out-of-range
+values rather than truncate them.
 
-The chain ID crosses the boundary as `js_sys::BigInt` and is checked with
-`u64::try_from`: negative values, values above `u64::MAX`, and non-bigint inputs
-throw rather than being truncated. The generated TypeScript parameter is
-`bigint`. Symbol and amount keep the core's existing behavior.
+## Build and test
 
-Runtime tests cover generation, formatting round trips, exact chain IDs, and
-missing/failing Web Crypto with recovery afterward. These are integration
-checks, not a statistical assessment of the random generator.
-
-### Generated types and conversions
-
-`wasm-bindgen` generates the class, its methods and their declarations.
-`NoteData` is the data transfer type generated by tsify, used by the constructor
-and `toObject()`:
-
-- `#[wasm_bindgen]` on the `Note` struct and its `impl` exports the class
-  and its methods under the same name in Rust and JS.
-- `#[wasm_bindgen(constructor)]` exposes Rust `new` as the JS constructor.
-- `#[wasm_bindgen(js_name = ...)]` gives methods their JS camelCase names.
-- `Serialize` and `Deserialize` support Rust-to-JS and JS-to-Rust data conversion.
-- `Tsify` generates the `NoteData` TypeScript interface.
-- `#[serde(rename_all = "camelCase")]` maps `chain_id` to `chainId`.
-- `#[tsify(large_number_types_as_bigints)]` represents `u64` as `bigint`.
-- `#[serde(serialize_with = "serde_bytes::serialize")]` serializes bytes as `Uint8Array`;
-  `#[tsify(type = "Uint8Array")]` declares that representation in TypeScript.
-- Custom `deserialize_with` functions inspect the original JS values through
-  `serde_wasm_bindgen::preserve`, require `bigint` and `Uint8Array`, check their
-  range/length, then convert them to Rust values. This prevents Serde from
-  silently accepting `number` or plain array inputs that the declarations reject.
-- `Ts<NoteData>` carries typed JS data across the boundary. `to_rust()?` and
-  `into_ts()?` perform fallible conversions inside the adapter.
-
-This replaces the earlier free functions (`parse_note`, `format_note`,
-`note_commitment`, `note_nullifier_hash`). The Rust core remains unchanged.
-
-## Build and run in Node
-
-Prerequisites: the `wasm32-unknown-unknown` Rust target, Node.js with `node:test`,
-and the `wasm-bindgen` CLI matching the crate's pinned version, `0.2.108`.
-If needed, install the CLI with:
+Run commands from the repository root. Use the `wasm32-unknown-unknown` Rust
+target and a wasm-bindgen CLI matching the pinned dependency:
 
 ```sh
 cargo install wasm-bindgen-cli --version 0.2.108 --locked
-```
 
-Run from the repository root:
-
-```sh
 cargo build --locked --manifest-path crates/Cargo.toml \
   -p kohaku-tornadocash-wasm --target wasm32-unknown-unknown --target-dir crates/target
+```
 
+### Node and TypeScript
+
+```sh
 wasm-bindgen crates/target/wasm32-unknown-unknown/debug/kohaku_tornadocash_wasm.wasm \
   --target nodejs --out-dir crates/target/tornadocash-wasm-node
 
 TORNADOCASH_WASM_MODULE=crates/target/tornadocash-wasm-node/kohaku_tornadocash_wasm.js \
   node --test crates/tornadocash-wasm/tests/*.cjs
-```
 
-The last command checks the generated JS/WASM boundary with synthetic notes:
-fixed-width hex output, JavaScript exceptions, nullifier-hash behavior, parsed
-fields and byte order, exact `bigint` values across the `u64` range, formatting
-round trips, invalid structured inputs, independent snapshots, and object lifetimes.
-Both hashes are also checked against fixed vectors produced independently with
-`circomlibjs@0.1.7`. Browser execution is tested separately below.
-
-After generating the bindings, check a TypeScript consumer against the generated
-declarations locally:
-
-```sh
 npm exec --yes --package=typescript@7.0.2 -- tsc --noEmit --strict \
   --target ES2020 --lib ES2020,ESNext.Disposable --module Node16 crates/tornadocash-wasm/tests/*.types.ts
 ```
 
-`ESNext.Disposable` supplies the types for the `[Symbol.dispose]()` method
-that wasm-bindgen also generates for the class.
+The `.cjs` tests exercise the generated `CommonJS` bindings: byte order, chain ID
+boundaries, invalid inputs, formatting, independent snapshots, object lifetimes,
+hashes, and Web Crypto failure/recovery. The `.types.ts` files are compile-only
+consumers that check accepted and rejected types against the generated declarations.
+`ESNext.Disposable` supplies the types for `[Symbol.dispose]()`.
 
-These compile-only fixtures verify result and input types, and reject `number`
-chain IDs, ordinary arrays for secret bytes, missing fields, and the Rust
-`chain_id` spelling.
+These tests cover the JS-specific conversions in a WASM runtime. The core's Rust
+tests cover its own implementation. Random generation checks are integration
+tests, not a statistical assessment of the generator.
 
-The test uses `.cjs` because `--target nodejs` generates a `CommonJS` module.
-It exercises the generated JavaScript API, including thrown `Error` objects.
-The core already has Rust tests for note encoding/decoding and a Pedersen hash
-vector. New Rust conversion logic should receive Rust tests when introduced;
-tests that construct JavaScript values or errors need a WASM runtime, for
-example through `wasm-bindgen-test`, rather than ordinary native `cargo test`.
-The constructor's JS-specific deserializers are covered by the Node and browser tests.
+### Browser
 
-## Test in a browser
-
-After building the WASM file, run from the repository root:
+Generate the web bindings from the same build, then install the test tooling:
 
 ```sh
 wasm-bindgen crates/target/wasm32-unknown-unknown/debug/kohaku_tornadocash_wasm.wasm \
@@ -218,14 +153,11 @@ npm ci --prefix crates/tornadocash-wasm/tests/browser
 npm test --prefix crates/tornadocash-wasm/tests/browser
 ```
 
-Playwright opens headless Chromium against a temporary localhost HTTP server.
-The tests load the generated ES module and WASM, check structured input/output
-and reference hashes, reject invalid input, and exercise Web Crypto failure and
-recovery. Test code and its npm dependencies live under `tests/browser`; this is
-test tooling, not an SDK package. Build outputs remain under `crates/target`.
+Playwright opens headless Chromium against a temporary localhost server. Tests
+load the generated ES module and check conversions, reference hashes, invalid
+inputs, and Web Crypto failure/recovery. Build outputs stay in `crates/target`.
 
-To use an already installed Chromium instead of downloading one, skip the
-Playwright browser installation and run:
+To use an installed Chromium, skip the browser download and run:
 
 ```sh
 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium \
@@ -234,14 +166,13 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium \
 
 ### Reference hash vectors
 
-`tests/fixtures/note-vectors.json` contains synthetic nullifiers/secrets and their
-expected commitment and nullifier hash. The independent reference is
-[circomlibjs's Pedersen implementation](https://github.com/iden3/circomlibjs/blob/v0.1.7/src/pedersen_hash.js):
-hash the 62-byte preimage or 31-byte nullifier, unpack the BabyJubJub point, and
-encode its x-coordinate as a 32-byte hex string. The vectors include repeated,
-ordered and zero bytes, including hashes requiring leading-zero padding.
+`tests/fixtures/note-vectors.json` contains synthetic inputs and expected hashes
+from [circomlibjs](https://github.com/iden3/circomlibjs/blob/v0.1.7/src/pedersen_hash.js).
+The reference hashes the 62-byte preimage or 31-byte nullifier, unpacks the
+`BabyJubJub` point, and encodes its x-coordinate as a 32-byte hex string. Vectors
+cover repeated, ordered and zero bytes, including leading-zero hash padding.
 
-To reproduce them for review (this is not part of the test run):
+To reproduce the vectors for review:
 
 ```sh
 npm install --prefix crates/target/note-vector-reference --ignore-scripts --no-audit --no-fund circomlibjs@0.1.7
@@ -251,24 +182,22 @@ node crates/tornadocash-wasm/tests/fixtures/generate-note-vectors.cjs \
 diff -u crates/tornadocash-wasm/tests/fixtures/note-vectors.json crates/target/note-vectors.json
 ```
 
-Tests read the checked-in values; they never regenerate expected hashes from
-the implementation under test. These vectors cover note hashing, not parity
-with every feature of the TS SDK.
+Tests read the checked-in vectors; they never regenerate expected hashes from
+the implementation under test. This covers note hashing, not full TS SDK parity.
 
 ## CI
 
-The `WASM` workflow runs on pull requests targeting `master`, pushes to `master`,
-and manual dispatch. It builds the WASM library, generates the Node bindings,
-and runs every `tests/*.cjs` file with Node's test runner. It then checks all
-`tests/*.types.ts` consumers against the generated declarations with
-`tsc --noEmit --strict`. It also generates the `web` target and runs the Chromium
-tests with Playwright. A build, generation, runtime test, or type-check failure
-fails the job. This check runs separately from the native Rust CI.
+The `WASM` workflow runs on PRs targeting `master`, pushes to `master`, and manual
+dispatch. It builds the crate, runs strict Clippy for this crate (`--no-deps --
+-D warnings`), generates Node and web bindings, and runs the Node, TypeScript and
+Chromium checks. Any failed step fails the job.
 
 CI uses Rust 1.98.1, Node 26.8.1, wasm-bindgen CLI 0.2.108, TypeScript 7.0.2,
-and Playwright 1.63.0 with its matching Chromium.
-When updating the wasm-bindgen dependency, update the CLI version in the workflow
-as well.
+and Playwright 1.63.0 with its matching Chromium. Keep the wasm-bindgen dependency
+and CLI versions aligned. To reproduce the lint check locally:
 
-`wasm-bindgen` generates the JS loader and `.d.ts`, including the `NoteData`
-declaration supplied by `tsify`. A public SDK wrapper and Worker are future work.
+```sh
+cargo clippy --locked --manifest-path crates/Cargo.toml \
+  -p kohaku-tornadocash-wasm --target wasm32-unknown-unknown \
+  --target-dir crates/target --no-deps -- -D warnings
+```

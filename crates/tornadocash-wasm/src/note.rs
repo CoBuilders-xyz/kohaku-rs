@@ -41,9 +41,9 @@ fn deserialize_bytes31<'de, D: Deserializer<'de>>(deserializer: D) -> Result<[u8
     let value: JsValue = preserve::deserialize(deserializer)?;
     let bytes = value
         .dyn_into::<js_sys::Uint8Array>()
-        .map_err(|_| D::Error::custom("secret bytes must be a Uint8Array"))?;
+        .map_err(|_| D::Error::custom("note bytes must be a Uint8Array"))?;
     if bytes.length() != 31 {
-        return Err(D::Error::custom("secret bytes must have length 31"));
+        return Err(D::Error::custom("note bytes must have length 31"));
     }
     let mut result = [0; 31];
     bytes.copy_to(&mut result);

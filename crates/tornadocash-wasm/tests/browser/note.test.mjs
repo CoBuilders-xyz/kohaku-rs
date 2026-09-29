@@ -83,29 +83,41 @@ test('web bindings preserve structured types, bytes and reference hashes', { tim
       text: `tornado-eth-0.10-18446744073709551615-0x${vector.nullifier}${vector.secret}`,
       commitment: vector.commitment, nullifierHash: vector.nullifierHash,
       parsedCommitment: vector.commitment, parsedNullifierHash: vector.nullifierHash,
-    });
+    }, vector.name);
   }
 });
 
 test('web bindings reject invalid inputs with JavaScript Errors', async () => {
-  const errors = await page.evaluate(() => {
+  const results = await page.evaluate(() => {
     const fields = { symbol: 'eth', amount: '1', chainId: 1n, nullifier: new Uint8Array(31), secret: new Uint8Array(31) };
     const calls = [
-      () => Note.parse('invalid'),
-      ...[1, -1n, 18446744073709551616n].flatMap(chainId => [
-        () => new Note({ ...fields, chainId }), () => Note.random('eth', '1', chainId),
+      ['parse: invalid text', () => Note.parse('invalid')],
+      ...[
+        ['number', 1],
+        ['negative bigint', -1n],
+        ['bigint above u64', 18446744073709551616n],
+      ].flatMap(([name, chainId]) => [
+        [`constructor: ${name}`, () => new Note({ ...fields, chainId })],
+        [`random: ${name}`, () => Note.random('eth', '1', chainId)],
       ]),
       ...['nullifier', 'secret'].flatMap(field =>
-        [Array(31).fill(0), new Uint8Array(30), new Uint8Array(32)]
-          .map(value => () => new Note({ ...fields, [field]: value }))),
+        [
+          ['plain array', Array(31).fill(0)],
+          ['30 bytes', new Uint8Array(30)],
+          ['32 bytes', new Uint8Array(32)],
+        ].map(([name, value]) => [`${field}: ${name}`, () => new Note({ ...fields, [field]: value })])),
     ];
-    return calls.map(call => {
-      try { call().free(); return false; }
-      catch (error) { return error instanceof Error; }
+    return calls.map(([name, call]) => {
+      let note;
+      try { note = call(); }
+      catch (error) { return { name, isError: error instanceof Error, message: String(error) }; }
+      note.free();
+      return { name, isError: false, message: 'input was accepted' };
     });
   });
-  assert.equal(errors.length, 13);
-  assert.ok(errors.every(Boolean));
+  for (const { name, isError, message } of results) {
+    assert.ok(isError, `${name}: ${message}`);
+  }
 });
 
 test('web bindings use Web Crypto, report failures, and recover', async () => {
@@ -113,10 +125,20 @@ test('web bindings use Web Crypto, report failures, and recover', async () => {
     const original = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
     const failures = [];
     try {
-      for (const crypto of [undefined, { getRandomValues() { throw new Error('unavailable'); } }]) {
+      const cases = [
+        ['missing Web Crypto', undefined],
+        ['failing Web Crypto', { getRandomValues() { throw new Error('unavailable'); } }],
+      ];
+      for (const [name, crypto] of cases) {
         Object.defineProperty(globalThis, 'crypto', { configurable: true, value: crypto });
-        try { Note.random('eth', '1', 1n).free(); failures.push(false); }
-        catch (error) { failures.push(error instanceof Error); }
+        let note;
+        try { note = Note.random('eth', '1', 1n); }
+        catch (error) {
+          failures.push({ name, isError: error instanceof Error, message: String(error) });
+          continue;
+        }
+        note.free();
+        failures.push({ name, isError: false, message: 'generation succeeded' });
       }
     } finally {
       if (original) Object.defineProperty(globalThis, 'crypto', original);
@@ -139,5 +161,9 @@ test('web bindings use Web Crypto, report failures, and recover', async () => {
       } finally { second.free(); }
     } finally { first.free(); }
   });
-  assert.deepEqual(result, { secureContext: true, failures: [true, true], distinct: true, roundTrip: true, preimageLength: 62 });
+  const { failures, ...generation } = result;
+  for (const { name, isError, message } of failures) {
+    assert.ok(isError, `${name}: ${message}`);
+  }
+  assert.deepEqual(generation, { secureContext: true, distinct: true, roundTrip: true, preimageLength: 62 });
 });
