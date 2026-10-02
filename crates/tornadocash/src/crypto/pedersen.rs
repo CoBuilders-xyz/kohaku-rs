@@ -1,4 +1,8 @@
-use std::str::FromStr;
+use std::{
+    collections::HashMap,
+    str::FromStr,
+    sync::{LazyLock, RwLock},
+};
 
 use ark_bn254::Fr;
 use ark_ff::{AdditiveGroup, Field};
@@ -27,7 +31,7 @@ const ORDER: U256 =
 /// 200 bits, encodes each segment as a signed-window scalar, multiplies by
 /// the corresponding generator point, and returns the x-coordinate of the
 /// accumulated point.
-pub fn pedersen_hash(data: &[u8]) -> U256 {
+pub fn pedersen_hash(data: &[u8]) -> Fr {
     let bits: Vec<bool> = (0..data.len() * 8).map(|i| test_bit(data, i)).collect();
     let n_segments = (bits.len().saturating_sub(1) / BITS_PER_SEGMENT) + 1;
 
@@ -49,9 +53,7 @@ pub fn pedersen_hash(data: &[u8]) -> U256 {
         acc = acc.projective().add(&contribution.projective()).affine();
     }
 
-    let x_big = fr_to_num_bigint(acc.x);
-    let (_, bytes_le) = x_big.to_bytes_le();
-    U256::from_le_slice(&bytes_le)
+    acc.x
 }
 
 /// Encode a segment's bits as a signed scalar.
@@ -90,13 +92,25 @@ fn segment_scalar(bits: &[bool]) -> BigInt {
     escalar
 }
 
+fn get_base_point(point_idx: usize) -> Point {
+    static CACHE: LazyLock<RwLock<HashMap<usize, Point>>> =
+        LazyLock::new(|| RwLock::new(HashMap::new()));
+
+    if let Some(p) = CACHE.read().unwrap().get(&point_idx) {
+        return p.clone();
+    }
+
+    let p = compute_base_point(point_idx);
+    CACHE.write().unwrap().entry(point_idx).or_insert(p).clone()
+}
+
 /// Derive the s-th Pedersen generator point.
 ///
 /// Hashes the string `"PedersenGenerator_{s:032}_{try:032}"` with Blake-256,
 /// clears the 254th bit (circomlib convention), unpacks the resulting bytes as
 /// a `BabyJubJub` point, multiplies by 8 to clear the cofactor, and returns the
 /// first such point that lies in the prime-order subgroup.
-fn get_base_point(point_idx: usize) -> Point {
+fn compute_base_point(point_idx: usize) -> Point {
     for try_idx in 0.. {
         let seed = format!("PedersenGenerator_{point_idx:032}_{try_idx:032}");
         let mut h = blake256(seed.as_bytes());
@@ -160,19 +174,17 @@ fn blake256(data: &[u8]) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-    use ruint::uint;
-
     use super::*;
 
     #[test]
     fn test_pedersen_hash() {
         // Expected value verified against circomlib's pedersenHash("Hello, world!")
         let hash = pedersen_hash(b"Hello, world!");
-        assert_eq!(
-            hash,
-            uint!(
-                13491600061712299675396441404596955294388976214662355192405913840310160783842_U256
-            )
-        );
+        let expected = uint!(
+            13491600061712299675396441404596955294388976214662355192405913840310160783842_U256
+        )
+        .try_into()
+        .unwrap();
+        assert_eq!(hash, expected);
     }
 }
