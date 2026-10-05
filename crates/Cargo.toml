@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "fork-kit",
-    "kv-store",
     "merkle-tree",
     "tornadocash",
     "tornadocash-circuit",
@@ -34,7 +33,6 @@ hex = "0.4.3"
 insta = "1.48.0"
 js-sys = "0.3.85"
 kohaku-fork-kit = { path = "fork-kit" }
-kohaku-kv-store = { path = "kv-store" }
 kohaku-merkle-tree = { path = "merkle-tree" }
 kohaku-tornadocash = { path = "tornadocash" }
 kohaku-tornadocash-circuit = { path = "tornadocash-circuit" }

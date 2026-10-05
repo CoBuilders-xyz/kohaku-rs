@@ -11,7 +11,7 @@
 
 Rusty privacy-first tooling for the Ethereum ecosystem.
 
-Kohaku-rs is a collection of rust crates for working with Ethereum privacy protocols. See [ethereum.github.io/kohaku](https://ethereum.github.io/kohaku/) for more information on the Kohaku project.
+Kohaku-rs is a collection of rust crates for working with Ethereum privacy protocols. See the [js kohaku repo](https://github.com/ethereum/kohaku) for more information.
 
 > [!IMPORTANT]
 > This project is a work in progress and is NOT READY FOR PRODUCTION USE. Packages contain UNAUDITED CODE. Consult underlying package READMEs for more information.
@@ -22,15 +22,14 @@ Kohaku-rs is a collection of rust crates for working with Ethereum privacy proto
 - [`kohaku-tornadocash-circuit`](./crates/tornadocash-circuit/) - Tornadocash circuit artifacts & proving wrapper.
 - [`kohaku-tornadocash-wallet`](./crates/tornadocash-wallet/) - Deterministic note derivation & wallet management for tornadocash.
 - [`kohaku-userop-kit`](./crates/userop-kit/) - 4337 user operation builder, signer, and paymaster library.
-- [`kohaku-kv-store`](./crates/kv-store/) - Key-value store implementation for kohaku-rs. Used by other kohaku-rs crates for data persistence.
-- [`kohaku-merkle-tree`](./crates/merkle-tree/) - Merkle tree implementation backed by `kohaku-kv-store`.
+- [`kohaku-merkle-tree`](./crates/merkle-tree/) - Generic merkle tree implementation.
 - [`kohaku-fork-kit`](./crates/fork-kit/) - Forking kit for testing and development of kohaku-rs crates.
 
 ### Experiments
 
 Experiments are incomplete and unstable features that are not ready for production use. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for more information.
 
-- [`kohaku-pir-provider`](https://github.com/ethereum/kohaku-rs/tree/experiments/pir-v1/crates/pir-provider) - Helios-style dual-endpoint Ethereum provider: PIR for private account reads, fallback JSON-RPC for everything else.
+- [`kohaku-privacy-rpc`](https://github.com/ethereum/kohaku-rs/tree/experiments/pir-v1/crates/privacy-rpc) -  dual-endpoint Ethereum provider: PIR for private account reads, fallback JSON-RPC for everything else. Can also enable Tor for network level anonymity.
 
 ## Development
 
