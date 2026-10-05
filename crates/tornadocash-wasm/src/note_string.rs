@@ -122,3 +122,36 @@ impl NoteString {
         Ok(hex.into_ts()?)
     }
 }
+
+#[cfg(all(test, target_arch = "wasm32"))]
+mod tests {
+    use super::{Note, NoteString};
+    use kohaku_tornadocash::note::Note as CoreNote;
+    use wasm_bindgen::JsValue;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[wasm_bindgen_test]
+    fn rejects_chain_ids_outside_u64() {
+        for text in ["-1", "18446744073709551616"] {
+            let note = Note {
+                inner: CoreNote::new([0u8; 31], [0u8; 31]),
+            };
+            let chain_id = js_sys::BigInt::new(&JsValue::from_str(text)).unwrap();
+
+            assert!(NoteString::new(note, "eth", "0.1", chain_id).is_err());
+        }
+    }
+
+    #[wasm_bindgen_test]
+    fn accepts_chain_id_boundaries() {
+        for chain_id in [0, u64::MAX] {
+            let note = Note {
+                inner: CoreNote::new([0u8; 31], [0u8; 31]),
+            };
+            let note_string =
+                NoteString::new(note, "eth", "0.1", js_sys::BigInt::from(chain_id)).unwrap();
+
+            assert_eq!(note_string.chain_id(), chain_id);
+        }
+    }
+}

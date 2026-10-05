@@ -27,13 +27,20 @@ jobs:
           targets: wasm32-unknown-unknown
           components: clippy
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26.8.1
+          package-manager-cache: false
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: crates
 
       - name: Install wasm-bindgen CLI
         # Must match the wasm-bindgen dependency in crates/Cargo.toml.
-        run: cargo install wasm-bindgen-cli --version 0.2.108 --locked --bin wasm-bindgen
+        run: >-
+          cargo install wasm-bindgen-cli --version 0.2.108 --locked
+          --bin wasm-bindgen --bin wasm-bindgen-test-runner
 
       - name: Build WASM bindings
         run: >-
@@ -46,6 +53,19 @@ jobs:
           cargo clippy --locked --manifest-path crates/Cargo.toml
           -p kohaku-tornadocash-wasm --target wasm32-unknown-unknown
           --target-dir crates/target --no-deps -- -D warnings
+
+      - name: Test native conversions
+        run: >-
+          cargo test --locked --manifest-path crates/Cargo.toml
+          -p kohaku-tornadocash-wasm --lib --target-dir crates/target
+
+      - name: Test WASM bindings
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
+        run: >-
+          cargo test --locked --manifest-path crates/Cargo.toml
+          -p kohaku-tornadocash-wasm --lib
+          --target wasm32-unknown-unknown --target-dir crates/target
 
       - name: Generate Node bindings
         run: >-

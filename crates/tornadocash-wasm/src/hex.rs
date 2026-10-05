@@ -9,19 +9,28 @@ use tsify::Tsify;
 #[tsify(type = "`0x${string}`")]
 pub struct Hex(String);
 
+#[derive(Debug, thiserror::Error)]
+pub enum HexError {
+    #[error("Hex must start with 0x")]
+    MissingPrefix,
+
+    #[error("Invalid hex: {0}")]
+    InvalidHex(#[from] hex::FromHexError),
+
+    #[error("Invalid byte length: {0}")]
+    InvalidLength(#[from] std::array::TryFromSliceError),
+}
+
 impl Hex {
-    pub fn to_bytes(&self) -> Result<Vec<u8>, wasm_bindgen::JsError> {
-        let text = self
-            .0
-            .strip_prefix("0x")
-            .ok_or_else(|| wasm_bindgen::JsError::new("Hex must start with 0x"))?;
+    pub fn to_bytes(&self) -> Result<Vec<u8>, HexError> {
+        let text = self.0.strip_prefix("0x").ok_or(HexError::MissingPrefix)?;
 
         Ok(hex::decode(text)?)
     }
 }
 
 impl TryFrom<Hex> for Nullifier {
-    type Error = wasm_bindgen::JsError;
+    type Error = HexError;
 
     fn try_from(value: Hex) -> Result<Self, Self::Error> {
         let bytes = value.to_bytes()?;
@@ -30,7 +39,7 @@ impl TryFrom<Hex> for Nullifier {
 }
 
 impl TryFrom<Hex> for Secret {
-    type Error = wasm_bindgen::JsError;
+    type Error = HexError;
 
     fn try_from(value: Hex) -> Result<Self, Self::Error> {
         let bytes = value.to_bytes()?;
@@ -59,5 +68,17 @@ impl From<&[u8]> for Hex {
 impl From<Field> for Hex {
     fn from(value: Field) -> Self {
         Self(value.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Hex, HexError};
+
+    #[test]
+    fn rejects_missing_prefix() {
+        let value = Hex("01".repeat(31));
+
+        assert!(matches!(value.to_bytes(), Err(HexError::MissingPrefix)));
     }
 }

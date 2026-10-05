@@ -62,8 +62,8 @@ module's default `init()` export before using the classes.
 
 ## Validation
 
-CI builds WASM, runs strict Clippy and generates Node/browser bindings.
-Tests for binding-specific conversions are pending.
+CI builds WASM, runs strict Clippy, tests native conversions and WASM bindings,
+and generates Node/browser bindings.
 
 ```sh
 cargo clippy --locked --manifest-path crates/Cargo.toml \
