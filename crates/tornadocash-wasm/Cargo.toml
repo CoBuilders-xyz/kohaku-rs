@@ -11,9 +11,7 @@ crate-type = ["cdylib", "rlib"]
 hex = { workspace = true }
 js-sys = { workspace = true }
 kohaku-tornadocash = { workspace = true }
-rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-serde_bytes = { workspace = true }
 tsify = { workspace = true }
 wasm-bindgen = { workspace = true }
 
