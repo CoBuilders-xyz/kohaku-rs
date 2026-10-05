@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 /// A Tornado note stored in WASM memory until its JavaScript wrapper is freed.
 #[wasm_bindgen]
 pub struct Note {
-    inner: CoreNote,
+    pub(crate) inner: CoreNote,
 }
 
 #[wasm_bindgen]
@@ -30,14 +30,14 @@ impl Note {
     #[wasm_bindgen(getter)]
     pub fn nullifier(&self) -> Result<Ts<Hex>, JsError> {
         let hex = Hex::from(self.inner.nullifier);
-        
-        Ok(hex.into_ts()?) 
+
+        Ok(hex.into_ts()?)
     }
 
     #[wasm_bindgen(getter)]
     pub fn secret(&self) -> Result<Ts<Hex>, JsError> {
         let hex = Hex::from(self.inner.secret);
-        
+
         Ok(hex.into_ts()?)
     }
 
@@ -45,7 +45,7 @@ impl Note {
     pub fn preimage(&self) -> Result<Ts<Hex>, JsError> {
         let bytes = self.inner.preimage();
         let hex = Hex::from(bytes.as_slice());
-        
+
         Ok(hex.into_ts()?)
     }
 

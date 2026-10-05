@@ -2,7 +2,7 @@ use kohaku_tornadocash::{
     Field,
     note::{Nullifier, Secret},
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use tsify::Tsify;
 
 #[derive(Serialize, Deserialize, Tsify)]
@@ -11,7 +11,8 @@ pub struct Hex(String);
 
 impl Hex {
     pub fn to_bytes(&self) -> Result<Vec<u8>, wasm_bindgen::JsError> {
-        let text = self.0
+        let text = self
+            .0
             .strip_prefix("0x")
             .ok_or_else(|| wasm_bindgen::JsError::new("Hex must start with 0x"))?;
 
