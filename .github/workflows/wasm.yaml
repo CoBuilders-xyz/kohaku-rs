@@ -47,8 +47,6 @@ jobs:
           -p kohaku-tornadocash-wasm --lib --target-dir crates/target
 
       - name: Test WASM bindings
-        env:
-          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
         run: >-
           cargo test --locked --manifest-path crates/Cargo.toml
           -p kohaku-tornadocash-wasm --lib
