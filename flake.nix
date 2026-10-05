@@ -54,6 +54,11 @@
               cargo-sort
               cargo-insta
 
+              # JS tooling
+              wasm-bindgen-cli_0_2_108
+              nodejs_26
+
+              # Solidity tooling
               foundry
               alto
               tornadocashRelayer
@@ -70,6 +75,11 @@
               rustToolchain
               cargo-audit
 
+              # JS tooling
+              wasm-bindgen-cli_0_2_108
+              nodejs_26
+
+              # Solidity tooling
               foundry
               alto
               tornadocashRelayer
