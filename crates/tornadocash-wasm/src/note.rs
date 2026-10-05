@@ -1,5 +1,5 @@
 use crate::hex::Hex;
-use kohaku_tornadocash::note::{Note as CoreNote, Nullifier, Secret};
+use kohaku_tornadocash::{Note as CoreNote, Nullifier, Secret};
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 

@@ -1,7 +1,4 @@
-use kohaku_tornadocash::{
-    Field,
-    note::{Nullifier, Secret},
-};
+use kohaku_tornadocash::{Field, Nullifier, Secret};
 use serde::{Deserialize, Serialize};
 use tsify::Tsify;
 

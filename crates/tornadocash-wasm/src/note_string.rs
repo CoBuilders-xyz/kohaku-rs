@@ -126,7 +126,7 @@ impl NoteString {
 #[cfg(all(test, target_arch = "wasm32"))]
 mod tests {
     use super::{Note, NoteString};
-    use kohaku_tornadocash::note::Note as CoreNote;
+    use kohaku_tornadocash::Note as CoreNote;
     use wasm_bindgen::JsValue;
     use wasm_bindgen_test::wasm_bindgen_test;
 
