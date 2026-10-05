@@ -76,6 +76,15 @@ mod tests {
     use super::{Hex, HexError};
 
     #[test]
+    fn converts_hex_and_bytes_preserving_leading_zeros() {
+        let bytes = [0x00, 0x01, 0xff];
+        let text = "0x0001ff";
+
+        assert_eq!(Hex(text.to_owned()).to_bytes().unwrap(), bytes);
+        assert_eq!(Hex::from(bytes.as_slice()).0, text);
+    }
+
+    #[test]
     fn rejects_missing_prefix() {
         let value = Hex("01".repeat(31));
 
