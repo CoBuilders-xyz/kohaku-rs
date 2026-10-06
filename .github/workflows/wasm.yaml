@@ -31,33 +31,33 @@ jobs:
 
       - name: Build WASM bindings
         run: >-
-          cargo build --locked --manifest-path crates/Cargo.toml
+          nix develop .#ci --command cargo build --locked --manifest-path crates/Cargo.toml
           -p kohaku-tornadocash-wasm --target wasm32-unknown-unknown
           --target-dir crates/target
 
       - name: Lint WASM bindings
         run: >-
-          cargo clippy --locked --manifest-path crates/Cargo.toml
+          nix develop .#ci --command cargo clippy --locked --manifest-path crates/Cargo.toml
           -p kohaku-tornadocash-wasm --target wasm32-unknown-unknown
           --target-dir crates/target --no-deps -- -D warnings
 
       - name: Test native conversions
         run: >-
-          cargo test --locked --manifest-path crates/Cargo.toml
+          nix develop .#ci --command cargo test --locked --manifest-path crates/Cargo.toml
           -p kohaku-tornadocash-wasm --lib --target-dir crates/target
 
       - name: Test WASM bindings
         run: >-
-          cargo test --locked --manifest-path crates/Cargo.toml
+          nix develop .#ci --command cargo test --locked --manifest-path crates/Cargo.toml
           -p kohaku-tornadocash-wasm --lib
           --target wasm32-unknown-unknown --target-dir crates/target
 
       - name: Generate Node bindings
         run: >-
-          wasm-bindgen crates/target/wasm32-unknown-unknown/debug/kohaku_tornadocash_wasm.wasm
+          nix develop .#ci --command wasm-bindgen crates/target/wasm32-unknown-unknown/debug/kohaku_tornadocash_wasm.wasm
           --target nodejs --out-dir crates/target/tornadocash-wasm-node
 
       - name: Generate browser bindings
         run: >-
-          wasm-bindgen crates/target/wasm32-unknown-unknown/debug/kohaku_tornadocash_wasm.wasm
+          nix develop .#ci --command wasm-bindgen crates/target/wasm32-unknown-unknown/debug/kohaku_tornadocash_wasm.wasm
           --target web --out-dir crates/target/tornadocash-wasm-web
