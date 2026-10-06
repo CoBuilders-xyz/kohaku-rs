@@ -1,0 +1,27 @@
+{
+  "name": "@cobuilders/kohaku-tornadocash-wasm",
+  "version": "0.1.0-dev.0",
+  "description": "JavaScript bindings for kohaku-tornadocash",
+  "type": "module",
+  "exports": {
+    "./node": {
+      "types": "./node/kohaku_tornadocash_wasm.d.ts",
+      "default": "./node/kohaku_tornadocash_wasm.js"
+    },
+    "./web": {
+      "types": "./web/kohaku_tornadocash_wasm.d.ts",
+      "default": "./web/kohaku_tornadocash_wasm.js"
+    },
+    "./package.json": "./package.json",
+    "./build-info.json": "./build-info.json"
+  },
+  "files": ["node", "web", "build-info.json", "README.md"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CoBuilders-xyz/kohaku-rs.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "dev"
+  }
+}

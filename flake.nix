@@ -57,6 +57,7 @@
               # JS tooling
               wasm-bindgen-cli_0_2_108
               nodejs_26
+              jq
 
               # Solidity tooling
               foundry
@@ -78,6 +79,7 @@
               # JS tooling
               wasm-bindgen-cli_0_2_108
               nodejs_26
+              jq
 
               # Solidity tooling
               foundry
