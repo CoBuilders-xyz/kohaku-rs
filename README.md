@@ -20,7 +20,8 @@ Kohaku-rs is a collection of rust crates for working with Ethereum privacy proto
 
 - [`kohaku-tornadocash`](./crates/tornadocash/) - [tornadocash](https://tornadocash.eth.limo/) client library.
 - [`kohaku-tornadocash-circuit`](./crates/tornadocash-circuit/) - Tornadocash circuit artifacts & proving wrapper.
-- [`kohaku-tornadocash-wallet`](./crates/tornadocash-wallet/) - Deterministic note derivation & wallet management for tornadocash.
+- [`kohaku-tornadocash-keyring`](./crates/tornadocash-keyring/) - Deterministic note derivation & keyring management for tornadocash.
+- [`kohaku-tornadocash-wasm`](./crates/tornadocash-wasm/) - Typescript WASM bindings for kohaku-tornadocash.
 - [`kohaku-userop-kit`](./crates/userop-kit/) - 4337 user operation builder, signer, and paymaster library.
 - [`kohaku-merkle-tree`](./crates/merkle-tree/) - Generic merkle tree implementation.
 - [`kohaku-fork-kit`](./crates/fork-kit/) - Forking kit for testing and development of kohaku-rs crates.
