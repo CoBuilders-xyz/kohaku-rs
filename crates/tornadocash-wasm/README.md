@@ -1,8 +1,8 @@
 # kohaku-tornadocash-wasm
 
 JavaScript/TypeScript bindings for `kohaku-tornadocash`. This crate houses the
-bindings for the core's public API, currently covering notes. The wrappers follow
-the Rust API; wasm-bindgen and tsify stay in this crate.
+bindings for the core's public API, currently covering notes and known assets.
+The wrappers follow the Rust API; wasm-bindgen and tsify stay in this crate.
 
 ## Available bindings
 
@@ -39,6 +39,47 @@ parsed.free();
 noteString.free();
 ```
 
+### Known assets
+
+- `Asset.eth()` returns the core's native ETH asset.
+- `Asset.matic()` returns the core's native MATIC asset.
+- `Asset.ethereumDai()` returns the core's Ethereum DAI ERC20 asset.
+
+Each factory returns a new, independently owned WASM wrapper. Read-only properties
+expose the core metadata:
+
+| Property | TypeScript type | Meaning |
+| --- | --- | --- |
+| `kind` | `string` | `"native"` or `"erc20"`. |
+| `symbol` | `string` | The core's asset symbol. |
+| `decimals` | `number` | The number of decimal places. |
+| `address` | `Hex \| undefined` | The lowercase ERC20 token address; `undefined` for native assets. |
+
+Use the named factories to obtain known assets. Call `free()` on each wrapper when
+finished, and do not reuse a freed wrapper. Freeing one wrapper does not invalidate
+another, even if both represent the same asset. Property reads borrow the wrapper
+and do not consume it.
+
+Example after generating the Node bindings:
+
+```js
+const { Asset } = require(
+  './crates/target/tornadocash-wasm-node/kohaku_tornadocash_wasm.js',
+);
+
+const eth = Asset.eth();
+const dai = Asset.ethereumDai();
+try {
+  console.log(eth.kind, eth.symbol, eth.decimals, eth.address);
+  // native eth 18 undefined
+  console.log(dai.kind, dai.symbol, dai.decimals, dai.address);
+  // erc20 dai 18 0x6b175474e89094c44da98b954eedeac495271d0f
+} finally {
+  eth.free();
+  dai.free();
+}
+```
+
 ## Build
 
 Run from the repository root. The wasm-bindgen CLI version must match the Rust dependency.
@@ -62,8 +103,9 @@ module's default `init()` export before using the classes.
 
 ## Validation
 
-CI builds WASM, runs strict Clippy, tests native conversions and WASM bindings,
-and generates Node/browser bindings.
+The `WASM` GitHub Actions workflow builds WASM, runs strict Clippy, tests native
+conversions and WASM bindings, and generates Node/browser bindings. It runs on
+pull requests targeting `master`, pushes to `master`, and manual dispatch.
 
 ```sh
 cargo clippy --locked --manifest-path crates/Cargo.toml \
