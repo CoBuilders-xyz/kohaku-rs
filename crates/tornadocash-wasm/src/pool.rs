@@ -2,7 +2,7 @@ use kohaku_tornadocash::Pool as CorePool;
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 
-use crate::hex::Hex;
+use crate::{asset::Asset, hex::Hex};
 
 /// A known Tornado pool stored in WASM memory until its JavaScript wrapper is freed.
 #[wasm_bindgen]
@@ -33,6 +33,54 @@ impl Pool {
     #[wasm_bindgen(getter)]
     pub fn address(&self) -> Result<Ts<Hex>, JsError> {
         Ok(Hex::from(self.inner.address).into_ts()?)
+    }
+
+    /// Return an independently owned asset wrapper.
+    #[wasm_bindgen(getter)]
+    #[must_use]
+    pub fn asset(&self) -> Asset {
+        Asset {
+            inner: self.inner.asset.clone(),
+        }
+    }
+
+    /// Return the fixed deposit amount in the asset's base units.
+    #[wasm_bindgen(getter, js_name = amountWei)]
+    #[must_use]
+    pub fn amount_wei(&self) -> u128 {
+        self.inner.amount_wei
+    }
+
+    /// Return the block at which the pool was deployed.
+    #[wasm_bindgen(getter, js_name = deployedBlock)]
+    #[must_use]
+    pub fn deployed_block(&self) -> u64 {
+        self.inner.deployed_block
+    }
+
+    /// Return the pool ID using the core's representation.
+    #[must_use]
+    pub fn id(&self) -> String {
+        self.inner.id()
+    }
+
+    /// Return the pool asset symbol.
+    #[must_use]
+    pub fn symbol(&self) -> String {
+        self.inner.symbol().to_owned()
+    }
+
+    /// Return the fixed deposit amount as decimal text using the core's formatting.
+    #[must_use]
+    pub fn amount(&self) -> String {
+        self.inner.amount()
+    }
+
+    /// Format the pool using the core's display representation.
+    #[wasm_bindgen(js_name = toString)]
+    #[must_use]
+    pub fn format(&self) -> String {
+        self.inner.to_string()
     }
 }
 
