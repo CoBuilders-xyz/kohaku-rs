@@ -3806,6 +3806,7 @@ name = "kohaku-tornadocash-wasm"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
+ "alloy-rpc-types-eth",
  "getrandom 0.4.3",
  "hex",
  "js-sys",

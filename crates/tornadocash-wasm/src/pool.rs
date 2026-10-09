@@ -7,7 +7,7 @@ use crate::{asset::Asset, hex::Hex, note_string::NoteString};
 /// A known Tornado pool stored in WASM memory until its JavaScript wrapper is freed.
 #[wasm_bindgen]
 pub struct Pool {
-    inner: CorePool,
+    pub(crate) inner: CorePool,
 }
 
 #[wasm_bindgen]
