@@ -3,6 +3,7 @@
 mod asset;
 mod bigint;
 mod hex;
+mod index;
 mod note;
 mod note_string;
 mod pool;
