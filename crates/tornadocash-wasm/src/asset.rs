@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use alloy_primitives::Address;
 use kohaku_tornadocash::Asset as CoreAsset;
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
@@ -25,6 +26,28 @@ impl Asset {
     ) -> Result<Self, JsError> {
         Ok(Self {
             inner: CoreAsset::Native {
+                symbol: Cow::Owned(symbol),
+                decimals: validate_decimals(decimals)?,
+            },
+        })
+    }
+
+    /// Construct an independently owned ERC20 asset, preserving the supplied symbol.
+    ///
+    /// # Errors
+    ///
+    /// Throws if the address cannot be decoded into 20 bytes or decimals is not a
+    /// finite integer JavaScript number in 0..=255.
+    pub fn erc20(
+        address: &Ts<Hex>,
+        symbol: String,
+        #[wasm_bindgen(unchecked_param_type = "number")] decimals: &JsValue,
+    ) -> Result<Self, JsError> {
+        let address = Address::try_from(address.to_rust()?)?;
+
+        Ok(Self {
+            inner: CoreAsset::Erc20 {
+                address,
                 symbol: Cow::Owned(symbol),
                 decimals: validate_decimals(decimals)?,
             },
@@ -107,6 +130,7 @@ mod tests {
     use std::borrow::Cow;
 
     use kohaku_tornadocash::Asset as CoreAsset;
+    use tsify::Ts;
     use wasm_bindgen::JsValue;
     use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -146,6 +170,46 @@ mod tests {
     #[wasm_bindgen_test]
     fn custom_native_rejects_string_decimals() {
         assert!(Asset::native("xyz".to_owned(), &JsValue::from_str("6")).is_err());
+    }
+
+    #[wasm_bindgen_test]
+    fn custom_erc20_maps_inputs_to_owned_core_asset() {
+        let address = Ts::new_unchecked(JsValue::from_str(
+            "0x00000000000000000000000000000000000000AB",
+        ));
+        let asset = Asset::erc20(&address, " Tkn ".to_owned(), &JsValue::from_f64(6.0)).unwrap();
+
+        match &asset.inner {
+            CoreAsset::Erc20 {
+                symbol, decimals, ..
+            } => {
+                assert!(matches!(symbol, Cow::Owned(_)));
+                assert_eq!(symbol, " Tkn ");
+                assert_eq!(*decimals, 6);
+            }
+            CoreAsset::Native { .. } => panic!("expected ERC20 asset"),
+        }
+        let address: JsValue = asset.address().unwrap().into();
+        assert_eq!(
+            address.as_string().unwrap(),
+            "0x00000000000000000000000000000000000000ab"
+        );
+    }
+
+    #[wasm_bindgen_test]
+    fn custom_erc20_rejects_invalid_address_length() {
+        let address = Ts::new_unchecked(JsValue::from_str("0x01"));
+
+        assert!(Asset::erc20(&address, "xyz".to_owned(), &JsValue::from_f64(6.0)).is_err());
+    }
+
+    #[wasm_bindgen_test]
+    fn custom_erc20_reuses_decimals_validation() {
+        let address = Ts::new_unchecked(JsValue::from_str(
+            "0x00000000000000000000000000000000000000ab",
+        ));
+
+        assert!(Asset::erc20(&address, "xyz".to_owned(), &JsValue::from_f64(6.5)).is_err());
     }
 
     #[wasm_bindgen_test]
