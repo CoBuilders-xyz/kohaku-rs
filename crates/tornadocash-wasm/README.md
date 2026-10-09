@@ -155,6 +155,44 @@ try {
 }
 ```
 
+### Custom assets
+
+- `Asset.native(symbol, decimals)` creates native currency metadata.
+- `Asset.erc20(address, symbol, decimals)` creates ERC20 token metadata.
+
+Symbols are preserved as supplied, including case and whitespace. Decimals must
+be a finite integer JavaScript `number` in `0..=255`; strings such as `"18"` are
+rejected. ERC20 addresses use `Hex` and must decode to exactly 20 bytes; address
+outputs use lowercase hex. Invalid inputs throw JavaScript `Error`s.
+
+Each factory returns an independently owned wrapper with the same read-only
+properties described above. Call `free()` on each wrapper when finished.
+Custom construction leaves the core catalog and known-asset factories unchanged.
+
+Example after generating the Node bindings:
+
+```js
+const { Asset } = require(
+  './crates/target/tornadocash-wasm-node/kohaku_tornadocash_wasm.js',
+);
+
+const native = Asset.native('xyz', 6);
+const token = Asset.erc20(
+  '0x00000000000000000000000000000000000000AB',
+  'ABC',
+  18,
+);
+try {
+  console.log(native.kind, native.symbol, native.decimals, native.address);
+  // native xyz 6 undefined
+  console.log(token.kind, token.symbol, token.decimals, token.address);
+  // erc20 ABC 18 0x00000000000000000000000000000000000000ab
+} finally {
+  native.free();
+  token.free();
+}
+```
+
 ## Build
 
 Run from the repository root. The wasm-bindgen CLI version must match the Rust dependency.
