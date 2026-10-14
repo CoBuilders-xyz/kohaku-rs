@@ -15,7 +15,7 @@ The wrappers follow the Rust API; wasm-bindgen and tsify stay in this crate.
   `preimage()`, `commitment()` and `nullifierHash()`.
 - `NoteString` also exposes read-only `symbol`, `amount` and `chainId` getters.
 
-Bytes use `0x`-prefixed hex strings, typed as `Hex` in TypeScript. Outputs use lowercase hex.
+Bytes use `0x`-prefixed hex strings, typed as `Hex` in TypeScript. Note outputs use lowercase hex.
 `chainId` is a `bigint` in the `u64` range. Conversion and parsing errors throw
 JavaScript `Error`s. All operations are synchronous.
 
@@ -47,6 +47,7 @@ noteString.free();
   amount text and chain ID. The note remains usable after the lookup.
 - `Pool.fromAddress(address)` finds a pool by its contract address, without a
   chain-ID parameter. The input is a typed `Hex` string and must decode to 20 bytes.
+  Input checksum validation is not required.
 
 Lookups delegate to the core and preserve its matching rules, including exact
 amount text matching. A valid lookup without a match returns `undefined`;
@@ -57,7 +58,7 @@ Read-only properties expose the pool metadata:
 | Property | TypeScript type | Meaning |
 | --- | --- | --- |
 | `chainId` | `bigint` | The chain ID, from the core's `u64`. |
-| `address` | `Hex` | The lowercase Tornado pool contract address. |
+| `address` | `Hex` | The checksummed Tornado pool contract address. |
 | `asset` | `Asset` | A new, independently owned wrapper for the pool's asset. |
 | `amountWei` | `bigint` | The fixed deposit amount in asset base units, from the core's `u128`. |
 | `deployedBlock` | `bigint` | The deployment block, from the core's `u64`. |
@@ -128,7 +129,7 @@ expose the core metadata:
 | `kind` | `string` | `"native"` or `"erc20"`. |
 | `symbol` | `string` | The core's asset symbol. |
 | `decimals` | `number` | The number of decimal places. |
-| `address` | `Hex \| undefined` | The lowercase ERC20 token address; `undefined` for native assets. |
+| `address` | `Hex \| undefined` | The checksummed ERC20 token address; `undefined` for native assets. |
 
 Use the named factories to obtain known assets. Call `free()` on each wrapper when
 finished, and do not reuse a freed wrapper. Freeing one wrapper does not invalidate
@@ -148,7 +149,7 @@ try {
   console.log(eth.kind, eth.symbol, eth.decimals, eth.address);
   // native eth 18 undefined
   console.log(dai.kind, dai.symbol, dai.decimals, dai.address);
-  // erc20 dai 18 0x6b175474e89094c44da98b954eedeac495271d0f
+  // erc20 dai 18 0x6B175474E89094C44Da98b954EedeAC495271d0F
 } finally {
   eth.free();
   dai.free();
@@ -163,7 +164,8 @@ try {
 Symbols are preserved as supplied, including case and whitespace. Decimals must
 be a finite integer JavaScript `number` in `0..=255`; strings such as `"18"` are
 rejected. ERC20 addresses use `Hex` and must decode to exactly 20 bytes; address
-outputs use lowercase hex. Invalid inputs throw JavaScript `Error`s.
+outputs use Alloy's canonical EIP-55 checksummed hex. Input checksum validation
+is not required. Invalid inputs throw JavaScript `Error`s.
 
 Each factory returns an independently owned wrapper with the same read-only
 properties described above. Call `free()` on each wrapper when finished.
@@ -186,7 +188,7 @@ try {
   console.log(native.kind, native.symbol, native.decimals, native.address);
   // native xyz 6 undefined
   console.log(token.kind, token.symbol, token.decimals, token.address);
-  // erc20 ABC 18 0x00000000000000000000000000000000000000ab
+  // erc20 ABC 18 0x00000000000000000000000000000000000000AB
 } finally {
   native.free();
   token.free();

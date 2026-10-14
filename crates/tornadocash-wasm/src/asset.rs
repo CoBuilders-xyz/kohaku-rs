@@ -104,7 +104,7 @@ impl Asset {
         self.inner.decimals()
     }
 
-    /// Return the ERC20 token address as hex, or undefined for a native asset.
+    /// Return the ERC20 token address as checksummed hex, or undefined for a native asset.
     #[wasm_bindgen(getter)]
     pub fn address(&self) -> Result<Option<Ts<Hex>>, JsError> {
         match &self.inner {
@@ -129,6 +129,7 @@ fn validate_decimals(value: &JsValue) -> Result<u8, JsError> {
 mod tests {
     use std::borrow::Cow;
 
+    use alloy_primitives::Address;
     use kohaku_tornadocash::Asset as CoreAsset;
     use tsify::Ts;
     use wasm_bindgen::JsValue;
@@ -140,14 +141,12 @@ mod tests {
     fn custom_native_maps_inputs_to_owned_core_asset() {
         let asset = Asset::native(" XyZ ".to_owned(), &JsValue::from_f64(6.0)).unwrap();
 
-        match asset.inner {
-            CoreAsset::Native { symbol, decimals } => {
-                assert!(matches!(&symbol, Cow::Owned(_)));
-                assert_eq!(symbol, " XyZ ");
-                assert_eq!(decimals, 6);
-            }
-            CoreAsset::Erc20 { .. } => panic!("expected native asset"),
-        }
+        let CoreAsset::Native { symbol, decimals } = asset.inner else {
+            panic!("expected native asset");
+        };
+        assert!(matches!(&symbol, Cow::Owned(_)));
+        assert_eq!(symbol, " XyZ ");
+        assert_eq!(decimals, 6);
     }
 
     #[wasm_bindgen_test]
@@ -179,21 +178,19 @@ mod tests {
         ));
         let asset = Asset::erc20(&address, " Tkn ".to_owned(), &JsValue::from_f64(6.0)).unwrap();
 
-        match &asset.inner {
-            CoreAsset::Erc20 {
-                symbol, decimals, ..
-            } => {
-                assert!(matches!(symbol, Cow::Owned(_)));
-                assert_eq!(symbol, " Tkn ");
-                assert_eq!(*decimals, 6);
-            }
-            CoreAsset::Native { .. } => panic!("expected ERC20 asset"),
-        }
-        let address: JsValue = asset.address().unwrap().into();
-        assert_eq!(
-            address.as_string().unwrap(),
-            "0x00000000000000000000000000000000000000ab"
-        );
+        let CoreAsset::Erc20 {
+            symbol,
+            decimals,
+            address,
+            ..
+        } = &asset.inner
+        else {
+            panic!("expected ERC20 asset");
+        };
+        assert!(matches!(symbol, Cow::Owned(_)));
+        assert_eq!(symbol, " Tkn ");
+        assert_eq!(*decimals, 6);
+        assert_eq!(*address, Address::with_last_byte(0xab));
     }
 
     #[wasm_bindgen_test]
@@ -222,14 +219,14 @@ mod tests {
     }
 
     #[wasm_bindgen_test]
-    fn erc20_asset_exposes_token_address_as_hex() {
+    fn erc20_asset_exposes_token_address_as_checksummed_hex() {
         let asset = Asset::ethereum_dai();
 
         assert_eq!(asset.kind(), "erc20");
         let address: JsValue = asset.address().unwrap().into();
         assert_eq!(
             address.as_string().unwrap(),
-            "0x6b175474e89094c44da98b954eedeac495271d0f"
+            "0x6B175474E89094C44Da98b954EedeAC495271d0F"
         );
     }
 }

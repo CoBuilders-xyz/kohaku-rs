@@ -51,7 +51,7 @@ impl Pool {
         self.inner.chain_id
     }
 
-    /// Return the pool contract address as hex.
+    /// Return the pool contract address as checksummed hex.
     #[wasm_bindgen(getter)]
     pub fn address(&self) -> Result<Ts<Hex>, JsError> {
         Ok(Hex::from(self.inner.address).into_ts()?)
@@ -116,11 +116,11 @@ mod wasm_tests {
     use crate::hex::Hex;
 
     #[wasm_bindgen_test]
-    fn pool_address_is_lowercase_hex() {
+    fn pool_address_is_checksummed_hex() {
         let pool = Pool {
             inner: CorePool::ETHEREUM_ETHER_01,
         };
-        let expected = pool.inner.address.to_string().to_ascii_lowercase();
+        let expected = pool.inner.address.to_string();
 
         let address: JsValue = pool.address().unwrap().into();
         assert_eq!(address.as_string().unwrap(), expected);

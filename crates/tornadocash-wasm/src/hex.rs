@@ -39,7 +39,7 @@ impl TryFrom<Hex> for Address {
 
 impl From<Address> for Hex {
     fn from(value: Address) -> Self {
-        Self::from(value.as_slice())
+        Self(value.to_string())
     }
 }
 
@@ -93,13 +93,24 @@ mod tests {
 
     #[test]
     fn converts_address_and_hex_preserving_leading_zeros() {
-        let mut bytes = [0x00; 20];
-        bytes[19] = 0xab;
-        let address = Address::from(bytes);
-        let text = "0x00000000000000000000000000000000000000ab";
+        let address = Address::with_last_byte(0xab);
+        let text = "0x00000000000000000000000000000000000000AB";
 
         assert_eq!(Hex::from(address).0, text);
         assert_eq!(Address::try_from(Hex(text.to_owned())).unwrap(), address);
+    }
+
+    #[test]
+    fn decodes_address_without_requiring_checksum() {
+        for text in [
+            "0x00000000000000000000000000000000000000ab",
+            "0x00000000000000000000000000000000000000aB",
+        ] {
+            assert_eq!(
+                Address::try_from(Hex(text.to_owned())).unwrap(),
+                Address::with_last_byte(0xab)
+            );
+        }
     }
 
     #[test]
