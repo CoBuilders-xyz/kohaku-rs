@@ -6,6 +6,8 @@ use crate::hex::Hex;
 
 /// An owned canonical inclusion proof, valid against its captured root.
 ///
+/// See [`kohaku_tornadocash::merkle_tree::MerkleProof`] for the canonical proof type.
+///
 /// Obtain this wrapper from `MerkleTree.proof()` and free it when finished.
 /// Updating or freeing the source tree does not change this proof.
 #[wasm_bindgen]

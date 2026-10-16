@@ -11,6 +11,8 @@ use crate::{hex::Hex, index::tree_index, merkle_proof::MerkleProof};
 pub struct Commitments(Vec<Hex>);
 
 /// A canonical depth-20 binary Tornado tree stored in WASM memory until freed.
+///
+/// See [`kohaku_tornadocash::merkle_tree::MerkleTree`] for the canonical tree type.
 #[wasm_bindgen]
 #[derive(Default)]
 pub struct MerkleTree {
