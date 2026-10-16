@@ -20,7 +20,9 @@ pub struct TransactionData {
     value: JsValue,
 }
 
-/// A Tornado deposit stored in WASM memory until its JavaScript wrapper is freed.
+/// A Tornado Cash deposit.
+///
+/// See [`kohaku_tornadocash::Deposit`] for more details.
 #[wasm_bindgen]
 pub struct Deposit {
     inner: CoreDeposit,
