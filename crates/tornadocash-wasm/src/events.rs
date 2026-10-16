@@ -23,7 +23,7 @@ pub struct LogInput {
     block_number: JsValue,
 }
 
-/// A plain JavaScript snapshot of a canonical decoded Tornado event.
+/// A plain JavaScript snapshot of [`SyncEvent`].
 #[derive(Serialize, Tsify)]
 #[serde(
     tag = "kind",
@@ -48,7 +48,7 @@ pub enum DecodedEvent {
     },
 }
 
-/// Decode a supplied log using the canonical Tornado event decoder.
+/// Decode a supplied log using [`SyncEvent::try_from_log`].
 ///
 /// Returns a plain snapshot or undefined for any core no-result, including an
 /// unknown/undecodable event or absent block number. The caller selects the
