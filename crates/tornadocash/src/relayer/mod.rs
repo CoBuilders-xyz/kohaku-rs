@@ -105,6 +105,10 @@ pub struct WithdrawalStatus {
 pub enum RelayerError {
     #[error("Unsupported pool: {0}")]
     UnsupportedPool(Pool),
+    #[error("ERC20 quote price must be nonzero")]
+    ZeroPrice,
+    #[error("ERC20 quote arithmetic overflow")]
+    QuoteOverflow,
     #[error("Reqwest error: {0}")]
     Client(#[from] reqwest::Error),
     #[error("Provider error: {0}")]
