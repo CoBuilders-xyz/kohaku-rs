@@ -1,15 +1,18 @@
 use wasm_bindgen::{JsError, JsValue};
 
 /// Decode a tree index before passing tree bounds and capacity checks to the core.
-#[allow(dead_code, reason = "shared helper for Merkle tree bindings")]
-pub(crate) fn tree_index(value: &JsValue) -> Result<u32, JsError> {
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "shared helper for Merkle tree bindings")
+)]
+pub fn tree_index(value: &JsValue) -> Result<u32, JsError> {
     let message = "Index must be a finite integer number in the u32 range";
     let value = value.as_f64().ok_or_else(|| JsError::new(message))?;
     if !value.is_finite() || value.fract() != 0.0 || !(0.0..=f64::from(u32::MAX)).contains(&value) {
         return Err(JsError::new(message));
     }
 
-    #[allow(
+    #[expect(
         clippy::cast_sign_loss,
         reason = "validated as an integer in the u32 range"
     )]

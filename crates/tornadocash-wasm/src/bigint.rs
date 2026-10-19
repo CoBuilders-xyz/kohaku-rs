@@ -3,8 +3,11 @@ use js_sys::BigInt;
 use wasm_bindgen::{JsCast, JsError, JsValue};
 
 /// Decode an exact unsigned 256-bit JavaScript bigint without coercion.
-#[allow(dead_code, reason = "shared helper for relayer and provider bindings")]
-pub(crate) fn bigint_to_u256(value: &JsValue) -> Result<U256, JsError> {
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "shared helper for relayer and provider bindings")
+)]
+pub fn bigint_to_u256(value: &JsValue) -> Result<U256, JsError> {
     let error = || JsError::new("value must be a bigint in the U256 range");
     if !value.is_bigint() {
         return Err(error());
@@ -18,14 +21,20 @@ pub(crate) fn bigint_to_u256(value: &JsValue) -> Result<U256, JsError> {
 }
 
 /// Convert an unsigned 256-bit value to an exact JavaScript bigint.
-#[allow(dead_code, reason = "shared helper for deposit and event bindings")]
-pub(crate) fn u256_to_bigint(value: U256) -> BigInt {
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "shared helper for deposit and event bindings")
+)]
+pub fn u256_to_bigint(value: U256) -> BigInt {
     JsValue::bigint_from_str(&value.to_string()).unchecked_into()
 }
 
 /// Decode an optional log block number without coercion or truncation.
-#[allow(dead_code, reason = "shared helper for event bindings")]
-pub(crate) fn optional_block_number(value: &JsValue) -> Result<Option<u64>, JsError> {
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "shared helper for event bindings")
+)]
+pub fn optional_block_number(value: &JsValue) -> Result<Option<u64>, JsError> {
     if value.is_undefined() {
         return Ok(None);
     }

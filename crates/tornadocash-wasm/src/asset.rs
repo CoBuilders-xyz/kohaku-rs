@@ -131,7 +131,7 @@ fn validate_decimals(value: &JsValue) -> Result<u8, JsError> {
         return Err(JsError::new(message));
     }
 
-    #[allow(clippy::cast_sign_loss, reason = "validated as an integer in 0..=255")]
+    #[expect(clippy::cast_sign_loss, reason = "validated as an integer in 0..=255")]
     Ok(value as u8)
 }
 
