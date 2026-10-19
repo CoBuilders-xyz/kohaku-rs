@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use alloy_primitives::Address;
+use alloy::primitives::Address;
 use kohaku_tornadocash::Asset as CoreAsset;
 use serde::{Deserialize, Serialize};
 use tsify::{Ts, Tsify};
@@ -139,7 +139,7 @@ fn validate_decimals(value: &JsValue) -> Result<u8, JsError> {
 mod tests {
     use std::borrow::Cow;
 
-    use alloy_primitives::Address;
+    use alloy::primitives::Address;
     use kohaku_tornadocash::Asset as CoreAsset;
     use tsify::Ts;
     use wasm_bindgen::JsValue;

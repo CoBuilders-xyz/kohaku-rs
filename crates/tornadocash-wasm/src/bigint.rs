@@ -1,4 +1,4 @@
-use alloy_primitives::U256;
+use alloy::primitives::U256;
 use js_sys::BigInt;
 use wasm_bindgen::{JsCast, JsError, JsValue};
 
@@ -37,7 +37,7 @@ pub(crate) fn optional_block_number(value: &JsValue) -> Result<Option<u64>, JsEr
 
 #[cfg(all(test, target_arch = "wasm32"))]
 mod wasm_tests {
-    use alloy_primitives::U256;
+    use alloy::primitives::U256;
     use wasm_bindgen::JsValue;
     use wasm_bindgen_test::wasm_bindgen_test;
 
