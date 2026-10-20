@@ -200,7 +200,7 @@ try {
 
 `decodeEvent` decodes caller-supplied Tornado logs into plain deposit or withdrawal
 snapshots. See the [event guide](docs/events.md) for input validation, exact bigint
-values, caller responsibilities and a runnable Node example.
+values, caller responsibilities and a short usage example.
 
 ## Build
 
