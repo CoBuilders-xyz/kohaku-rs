@@ -1,11 +1,10 @@
-use alloy_primitives::TxKind;
-use js_sys::BigInt;
+use alloy::primitives::TxKind;
 use kohaku_tornadocash::Deposit as CoreDeposit;
 use serde::Serialize;
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 
-use crate::{bigint::u256_to_bigint, hex::Hex, note::Note, pool::Pool};
+use crate::{bigint::JsU256, hex::Hex, note::Note, pool::Pool};
 
 /// Plain target, calldata and optional value from a core approval request.
 #[derive(Serialize, Tsify)]
@@ -51,8 +50,8 @@ impl Deposit {
 
     /// Return the exact native value required by the core, or zero for ERC20 pools.
     #[must_use]
-    pub fn value(&self) -> BigInt {
-        u256_to_bigint(self.inner.value())
+    pub fn value(&self) -> JsU256 {
+        self.inner.value().into()
     }
 
     /// Return the core's ERC20 approval as a plain snapshot, or undefined for native pools.
@@ -75,7 +74,7 @@ impl Deposit {
                 data: Hex::from(data.as_ref()),
                 value: approval
                     .value
-                    .map_or(JsValue::UNDEFINED, |value| u256_to_bigint(value).into()),
+                    .map_or(JsValue::UNDEFINED, |value| JsU256::from(value).into()),
             }
             .into_ts()?,
         ))
@@ -84,15 +83,14 @@ impl Deposit {
 
 #[cfg(all(test, target_arch = "wasm32"))]
 mod wasm_tests {
-    use alloy_primitives::TxKind;
-    use alloy_rpc_types_eth::TransactionRequest;
-    use js_sys::{BigInt, Object, Reflect};
+    use alloy::primitives::{TxKind, U256};
+    use js_sys::{Object, Reflect};
     use kohaku_tornadocash::{Note as CoreNote, Pool as CorePool};
-    use tsify::{Ts, Tsify};
-    use wasm_bindgen::{JsCast, JsValue};
+    use tsify::Tsify;
+    use wasm_bindgen::JsValue;
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use super::{CoreDeposit, Deposit, TransactionData};
+    use super::{CoreDeposit, Deposit};
     use crate::{hex::Hex, note::Note, pool::Pool};
 
     #[wasm_bindgen_test]
@@ -124,10 +122,7 @@ mod wasm_tests {
                     .unwrap(),
                 expected.input()
             );
-            assert_eq!(
-                String::from(deposit.value().to_string(10).unwrap()),
-                expected.value().to_string()
-            );
+            assert_eq!(U256::try_from(deposit.value()).unwrap(), expected.value());
         }
     }
 
@@ -145,31 +140,13 @@ mod wasm_tests {
         let (deposit, core) = deposit_fixture(CorePool::ETHEREUM_DAI_100);
         let expected = core.approval().unwrap();
 
-        assert_snapshot(deposit.approval().unwrap().unwrap(), &expected);
-    }
-
-    fn deposit_fixture(core_pool: CorePool) -> (Deposit, CoreDeposit) {
-        let core_note = CoreNote::new([1_u8; 31], [2_u8; 31]);
-        let core = CoreDeposit::new(&core_pool, core_note.clone());
-        let pool = Pool { inner: core_pool };
-        let note = Note { inner: core_note };
-
-        (Deposit::new(&pool, &note), core)
-    }
-
-    fn assert_snapshot(snapshot: Ts<TransactionData>, expected: &TransactionRequest) {
-        let snapshot: JsValue = snapshot.into();
+        let snapshot: JsValue = deposit.approval().unwrap().unwrap().into();
         let mut keys = Object::keys(&Object::from(snapshot.clone()))
             .iter()
             .map(|key| key.as_string().unwrap())
             .collect::<Vec<_>>();
         keys.sort();
-        let expected_keys = if expected.value.is_some() {
-            vec!["data", "to", "value"]
-        } else {
-            vec!["data", "to"]
-        };
-        assert_eq!(keys, expected_keys);
+        assert_eq!(keys, ["data", "to"]);
 
         let Some(TxKind::Call(address)) = expected.to else {
             panic!("expected a core transaction target address");
@@ -182,15 +159,19 @@ mod wasm_tests {
             data.as_string().unwrap(),
             format!("0x{}", hex::encode(expected.input.input().unwrap()))
         );
-        let actual_value = Reflect::get(&snapshot, &JsValue::from_str("value")).unwrap();
-        if let Some(value) = expected.value {
-            let actual_value: BigInt = actual_value.dyn_into().unwrap();
-            assert_eq!(
-                String::from(actual_value.to_string(10).unwrap()),
-                value.to_string()
-            );
-        } else {
-            assert!(actual_value.is_undefined());
-        }
+        assert!(
+            Reflect::get(&snapshot, &JsValue::from_str("value"))
+                .unwrap()
+                .is_undefined()
+        );
+    }
+
+    fn deposit_fixture(core_pool: CorePool) -> (Deposit, CoreDeposit) {
+        let core_note = CoreNote::new([1_u8; 31], [2_u8; 31]);
+        let core = CoreDeposit::new(&core_pool, core_note.clone());
+        let pool = Pool { inner: core_pool };
+        let note = Note { inner: core_note };
+
+        (Deposit::new(&pool, &note), core)
     }
 }

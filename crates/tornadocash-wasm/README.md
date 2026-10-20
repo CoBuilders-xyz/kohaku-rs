@@ -200,7 +200,7 @@ try {
 
 `Deposit` prepares unsigned deposit data and optional ERC20 approval data from a
 `Pool` and `Note`. See the [deposit guide](docs/deposits.md) for the API, ownership
-and a runnable Node example.
+and a short usage example.
 
 ## Build
 
