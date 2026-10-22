@@ -9,8 +9,6 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 alloy = { workspace = true, features = ["providers", "reqwest"] }
-alloy-primitives = { workspace = true }
-alloy-rpc-types-eth = { version = "2.4.1", default-features = false }
 hex = { workspace = true }
 js-sys = { workspace = true }
 kohaku-tornadocash = { workspace = true }

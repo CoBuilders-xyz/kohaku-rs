@@ -65,7 +65,9 @@ injected-wallet adapter, relayer client or synchronization service.
 
 The Rust tests beside `provider.rs` check the wrapper's HTTP(S) scheme restriction,
 conversion of every supplied array element, and use of the strict bigint input
-boundary. Shared Hex/Field and U256 conversion coverage is reused. Core query
+boundary. Amounts use the shared `JsU256` From/TryFrom conversions while the
+JavaScript API continues to accept and return bigint. Shared Hex/Field and numeric
+conversion coverage is reused. Core query
 semantics, Alloy/reqwest transport, Promise scheduling and generated borrow/free
 behavior rely on their documented library/toolchain contracts. The wrapper keeps
 explicit owned snapshots and a cloned provider handle in each future.

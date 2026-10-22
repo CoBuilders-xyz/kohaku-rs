@@ -1,15 +1,11 @@
-use alloy::{providers::RootProvider, transports::http::reqwest::Url};
+use alloy::{primitives::U256, providers::RootProvider, transports::http::reqwest::Url};
 use js_sys::{Array, Promise};
 use kohaku_tornadocash::{Field, TornadoProviderExt};
 use tsify::Ts;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 
-use crate::{
-    Pool,
-    bigint::{bigint_to_u256, u256_to_bigint},
-    hex::Hex,
-};
+use crate::{Pool, bigint::JsU256, hex::Hex};
 
 /// Read-only Tornado pool queries through an HTTP(S) RPC endpoint.
 ///
@@ -105,9 +101,9 @@ impl TornadoProvider {
     pub fn quote_wei_in_fee_token(
         &self,
         pool: &Pool,
-        #[wasm_bindgen(js_name = weiAmount, unchecked_param_type = "bigint")] wei_amount: &JsValue,
+        #[wasm_bindgen(js_name = weiAmount)] wei_amount: JsU256,
     ) -> Promise {
-        let amount = bigint_to_u256(wei_amount);
+        let amount = U256::try_from(wei_amount);
         let pool = pool.inner.clone();
         let provider = self.inner.clone();
         future_to_promise(async move {
@@ -115,7 +111,7 @@ impl TornadoProvider {
                 .quote_wei_in_fee_token(&pool, amount?)
                 .await
                 .map_err(JsError::from)?;
-            Ok(JsValue::from(u256_to_bigint(result)))
+            Ok(JsU256::from(result).into())
         })
     }
 }
@@ -165,10 +161,11 @@ mod wasm_tests {
     #[wasm_bindgen_test]
     async fn quote_rejects_number_instead_of_coercing_it() {
         let provider = TornadoProvider::new("http://127.0.0.1:1").unwrap();
-        let error =
-            JsFuture::from(provider.quote_wei_in_fee_token(&pool(), &JsValue::from_f64(1.0)))
-                .await
-                .unwrap_err();
+        let error = JsFuture::from(
+            provider.quote_wei_in_fee_token(&pool(), JsValue::from_f64(1.0).unchecked_into()),
+        )
+        .await
+        .unwrap_err();
         assert!(js_sys::Error::from(error).message().includes("bigint", 0));
     }
 }
