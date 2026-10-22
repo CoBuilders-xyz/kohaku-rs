@@ -1,13 +1,9 @@
-use alloy_primitives::Address;
-use js_sys::BigInt;
+use alloy::primitives::Address;
 use kohaku_tornadocash::Payer as CorePayer;
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 
-use crate::{
-    bigint::{bigint_to_u256, u256_to_bigint},
-    hex::Hex,
-};
+use crate::{bigint::JsU256, hex::Hex};
 
 /// The payer of a withdrawal transaction, with exact fee and refund amounts.
 ///
@@ -25,16 +21,12 @@ impl Payer {
     /// Throws if address is not a 20-byte Hex or either amount is not a bigint
     /// in `0..=U256::MAX`.
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        address: &Ts<Hex>,
-        #[wasm_bindgen(unchecked_param_type = "bigint")] fee: &JsValue,
-        #[wasm_bindgen(unchecked_param_type = "bigint")] refund: &JsValue,
-    ) -> Result<Self, JsError> {
+    pub fn new(address: &Ts<Hex>, fee: JsU256, refund: JsU256) -> Result<Self, JsError> {
         Ok(Self {
             inner: CorePayer {
                 address: Address::try_from(address.to_rust()?)?,
-                fee: bigint_to_u256(fee)?,
-                refund: bigint_to_u256(refund)?,
+                fee: fee.try_into()?,
+                refund: refund.try_into()?,
             },
         })
     }
@@ -48,21 +40,21 @@ impl Payer {
     /// Return the fee in the pool asset's base units.
     #[wasm_bindgen(getter)]
     #[must_use]
-    pub fn fee(&self) -> BigInt {
-        u256_to_bigint(self.inner.fee)
+    pub fn fee(&self) -> JsU256 {
+        self.inner.fee.into()
     }
 
     /// Return the native-asset refund in base units.
     #[wasm_bindgen(getter)]
     #[must_use]
-    pub fn refund(&self) -> BigInt {
-        u256_to_bigint(self.inner.refund)
+    pub fn refund(&self) -> JsU256 {
+        self.inner.refund.into()
     }
 }
 
 #[cfg(all(test, target_arch = "wasm32"))]
 mod tests {
-    use alloy_primitives::U256;
+    use alloy::primitives::U256;
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use super::*;
@@ -70,16 +62,16 @@ mod tests {
     #[wasm_bindgen_test]
     fn payer_maps_address_fee_and_refund() {
         let address = Address::with_last_byte(0xab);
-        let fee = U256::from(1) << 200;
+        let fee: U256 = U256::from(1) << 200;
         let refund = U256::from(7);
         let payer = Payer::new(
             &Hex::from(address).into_ts().unwrap(),
-            &u256_to_bigint(fee).into(),
-            &u256_to_bigint(refund).into(),
+            fee.into(),
+            refund.into(),
         )
         .unwrap();
-        assert_eq!(bigint_to_u256(&payer.fee().into()).unwrap(), fee);
-        assert_eq!(bigint_to_u256(&payer.refund().into()).unwrap(), refund);
+        assert_eq!(U256::try_from(payer.fee()).unwrap(), fee);
+        assert_eq!(U256::try_from(payer.refund()).unwrap(), refund);
         let output: JsValue = payer.address().unwrap().into();
         assert_eq!(output.as_string().unwrap(), address.to_string());
     }

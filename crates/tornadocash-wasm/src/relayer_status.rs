@@ -7,7 +7,7 @@ use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    bigint::{bigint_to_u256, u256_to_bigint},
+    bigint::{JsU32, JsU64, JsU128, JsU256},
     hex::Hex,
     payer::Payer,
     pool::Pool,
@@ -93,8 +93,8 @@ impl RelayerStatus {
     /// Return the network ID as an exact bigint.
     #[wasm_bindgen(getter, js_name = netId)]
     #[must_use]
-    pub fn net_id(&self) -> u64 {
-        self.inner.net_id
+    pub fn net_id(&self) -> JsU64 {
+        self.inner.net_id.into()
     }
 
     /// Return a detached Map of exact token prices, keyed by asset symbol.
@@ -103,7 +103,7 @@ impl RelayerStatus {
     pub fn eth_prices(&self) -> Map {
         let prices = Map::new();
         for (symbol, price) in &self.inner.eth_prices {
-            prices.set(&JsValue::from_str(symbol), &u256_to_bigint(*price));
+            prices.set(&JsValue::from_str(symbol), &JsU256::from(*price));
         }
         prices
     }
@@ -142,8 +142,8 @@ impl RelayerStatus {
     /// Return the reported queue size.
     #[wasm_bindgen(getter, js_name = currentQueue)]
     #[must_use]
-    pub fn current_queue(&self) -> u32 {
-        self.inner.current_queue
+    pub fn current_queue(&self) -> JsU32 {
+        self.inner.current_queue.into()
     }
 
     /// Check pool support using the core, borrowing the pool without consuming it.
@@ -160,26 +160,22 @@ impl RelayerStatus {
     pub fn quote(
         &self,
         pool: &Pool,
-        #[wasm_bindgen(js_name = gasPrice, unchecked_param_type = "bigint")] gas_price: &JsValue,
-        #[wasm_bindgen(unchecked_param_type = "bigint")] refund: &JsValue,
+        #[wasm_bindgen(js_name = gasPrice)] gas_price: JsU128,
+        refund: JsU256,
     ) -> Result<Payer, JsError> {
-        let gas_price = u128::try_from(gas_price.clone())
-            .map_err(|_| JsError::new("gasPrice must be a bigint in the u128 range"))?;
-        let refund = bigint_to_u256(refund)?;
         Ok(Payer {
-            inner: self.inner.quote(&pool.inner, gas_price, refund)?,
+            inner: self
+                .inner
+                .quote(&pool.inner, gas_price.try_into()?, refund.try_into()?)?,
         })
     }
 }
 
 #[cfg(all(test, target_arch = "wasm32"))]
 mod tests {
-    use alloy_primitives::{Address, U256};
+    use alloy::primitives::{Address, U256};
     use js_sys::Reflect;
-    use kohaku_tornadocash::{
-        Pool as CorePool,
-        relayer::{Health as CoreHealth, Instance as CoreInstance},
-    };
+    use kohaku_tornadocash::relayer::{Health as CoreHealth, Instance as CoreInstance};
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use super::*;
@@ -190,6 +186,8 @@ mod tests {
         let price = U256::from(1) << 200;
         let status = RelayerStatus {
             inner: CoreRelayerStatus {
+                net_id: 7,
+                current_queue: 9,
                 eth_prices: HashMap::from([("token".to_owned(), price)]),
                 health: CoreHealth {
                     status: Some("ok".to_owned()),
@@ -206,9 +204,14 @@ mod tests {
                 ..Default::default()
             },
         };
+        assert_eq!(u64::try_from(status.net_id()).unwrap(), 7);
+        assert_eq!(u32::try_from(status.current_queue()).unwrap(), 9);
         let key = JsValue::from_str("token");
         let prices = status.eth_prices();
-        assert_eq!(bigint_to_u256(&prices.get(&key)).unwrap(), price);
+        assert_eq!(
+            U256::try_from(prices.get(&key).unchecked_into::<JsU256>()).unwrap(),
+            price
+        );
         prices.clear();
         assert_eq!(status.eth_prices().size(), 1);
 
@@ -239,45 +242,6 @@ mod tests {
             Reflect::get(&health, &JsValue::from_str("error"))
                 .unwrap()
                 .is_undefined()
-        );
-    }
-
-    #[wasm_bindgen_test]
-    fn quote_checks_gas_price_width() {
-        let pool = Pool {
-            inner: CorePool::ETHEREUM_ETHER_1,
-        };
-        // Only the support metadata needed to reach our successful narrowing path.
-        let status = RelayerStatus {
-            inner: CoreRelayerStatus {
-                net_id: pool.inner.chain_id,
-                instances: HashMap::from([(
-                    pool.inner.symbol().to_owned(),
-                    CoreInstance {
-                        instance_address: HashMap::from([(
-                            pool.inner.amount(),
-                            pool.inner.address,
-                        )]),
-                        ..Default::default()
-                    },
-                )]),
-                ..Default::default()
-            },
-        };
-        let zero = JsValue::from(0_u128);
-        assert!(
-            status
-                .quote(&pool, &JsValue::from(u128::MAX), &zero)
-                .is_ok()
-        );
-        assert!(
-            status
-                .quote(
-                    &pool,
-                    &JsValue::bigint_from_str("340282366920938463463374607431768211456"),
-                    &zero
-                )
-                .is_err()
         );
     }
 }

@@ -1,4 +1,4 @@
-use alloy_primitives::{Address, B256};
+use alloy::primitives::{Address, B256};
 use kohaku_tornadocash::{Field, Nullifier, Secret};
 use serde::{Deserialize, Serialize};
 use tsify::Tsify;
@@ -100,7 +100,7 @@ impl TryFrom<Hex> for Field {
 
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::Address;
+    use alloy::primitives::Address;
     use kohaku_tornadocash::Field;
 
     use super::{Hex, HexError};
