@@ -2,6 +2,7 @@
 
 mod asset;
 mod bigint;
+mod call;
 mod deposit;
 mod hex;
 mod note;

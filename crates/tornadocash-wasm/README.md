@@ -198,9 +198,9 @@ try {
 
 ### Deposit preparation
 
-`Deposit` prepares unsigned deposit data and optional ERC20 approval data from a
-`Pool` and `Note`. See the [deposit guide](docs/deposits.md) for the API, ownership
-and a short usage example.
+`Deposit` exposes `depositData()` and `approvalData()` to prepare plain `Call`
+objects from a `Pool` and `Note`. See the [deposit guide](docs/deposits.md) for the
+API, ownership and a short usage example.
 
 ## Build
 
