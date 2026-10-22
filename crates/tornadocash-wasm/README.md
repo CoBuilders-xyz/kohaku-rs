@@ -200,7 +200,7 @@ try {
 
 `MerkleTree` builds and updates the canonical Tornado tree from ordered commitments;
 `MerkleProof` verifies local inclusion. See the [Merkle guide](docs/merkle.md) for the
-API, ownership, proof limitations and a runnable Node example.
+API, ownership, proof limitations and concise usage.
 
 ## Build
 

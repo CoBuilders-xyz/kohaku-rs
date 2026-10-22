@@ -3,7 +3,6 @@
 mod asset;
 mod bigint;
 mod hex;
-mod index;
 mod merkle_proof;
 mod merkle_tree;
 mod note;

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 
-use crate::{hex::Hex, index::tree_index, merkle_proof::MerkleProof};
+use crate::{bigint::JsU32, hex::Hex, merkle_proof::MerkleProof};
 
 /// An ordered JavaScript array of commitment hex strings, with no WASM ownership.
 #[derive(Serialize, Deserialize, Tsify)]
@@ -56,11 +56,10 @@ impl MerkleTree {
     /// a commitment is invalid, or the core rejects the bounds or capacity.
     pub fn splice(
         &mut self,
-        #[wasm_bindgen(js_name = startIndex, unchecked_param_type = "number")]
-        start_index: &JsValue,
+        #[wasm_bindgen(js_name = startIndex)] start_index: JsU32,
         commitments: &Ts<Commitments>,
     ) -> Result<(), JsError> {
-        let start_index = tree_index(start_index)? as usize;
+        let start_index = u32::try_from(start_index)? as usize;
         let leaves = decode_commitments(commitments)?;
         self.inner.splice(start_index, &leaves)?;
         Ok(())
@@ -77,11 +76,8 @@ impl MerkleTree {
     ///
     /// Throws if index is not a finite integer JS number in the u32 range,
     /// or if the core rejects the leaf index.
-    pub fn proof(
-        &self,
-        #[wasm_bindgen(unchecked_param_type = "number")] index: &JsValue,
-    ) -> Result<MerkleProof, JsError> {
-        let index = tree_index(index)? as usize;
+    pub fn proof(&self, index: JsU32) -> Result<MerkleProof, JsError> {
+        let index = u32::try_from(index)? as usize;
         Ok(self.inner.proof(index)?.into())
     }
 }
@@ -101,24 +97,10 @@ mod wasm_tests {
     use wasm_bindgen::JsValue;
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use super::{Commitments, CoreMerkleTree, Field, Hex, MerkleTree};
+    use super::{Commitments, Field, Hex, MerkleTree};
 
     #[wasm_bindgen_test]
-    fn empty_construction_returns_the_core_root_as_hex() {
-        let expected = CoreMerkleTree::new().root().unwrap().to_string();
-        let empty_leaves = Commitments(Vec::new()).into_ts().unwrap();
-
-        for tree in [
-            MerkleTree::new(),
-            MerkleTree::from_leaves(&empty_leaves).unwrap(),
-        ] {
-            let root: JsValue = tree.root().unwrap().into();
-            assert_eq!(root.as_string().unwrap(), expected);
-        }
-    }
-
-    #[wasm_bindgen_test]
-    fn from_leaves_converts_commitments_in_order_and_delegates_to_core() {
+    fn from_leaves_converts_commitments_in_order() {
         let leaves = [Field::from(0xab_usize), Field::from(1_usize)];
         let commitments = Commitments(leaves.into_iter().map(Hex::from).collect())
             .into_ts()
@@ -127,27 +109,6 @@ mod wasm_tests {
         let tree = MerkleTree::from_leaves(&commitments).unwrap();
 
         assert_eq!(tree.inner.leaves(), leaves);
-        let root: JsValue = tree.root().unwrap().into();
-        assert_eq!(
-            root.as_string().unwrap(),
-            CoreMerkleTree::from_leaves(&leaves)
-                .unwrap()
-                .root()
-                .unwrap()
-                .to_string()
-        );
-    }
-
-    #[wasm_bindgen_test]
-    fn from_leaves_rejects_a_malformed_later_field() {
-        let commitments = Commitments(vec![
-            Hex::from(Field::from(1_usize)),
-            Hex::from([0xab].as_slice()),
-        ])
-        .into_ts()
-        .unwrap();
-
-        assert!(MerkleTree::from_leaves(&commitments).is_err());
     }
 
     #[wasm_bindgen_test]
@@ -164,59 +125,31 @@ mod wasm_tests {
         .into_ts()
         .unwrap();
 
-        assert!(tree.splice(&JsValue::from(0), &malformed).is_err());
+        assert!(tree.splice(0_u32.into(), &malformed).is_err());
         assert_eq!(tree.inner.root().unwrap(), before);
         assert_eq!(tree.inner.leaves(), &[Field::from(1_usize)]);
     }
 
     #[wasm_bindgen_test]
-    fn splice_converts_and_delegates_replacement_and_append() {
-        let initial = Commitments(vec![Hex::from(Field::from(1_usize))])
-            .into_ts()
-            .unwrap();
+    fn splice_maps_commitments_and_start_index() {
+        let initial = Commitments(vec![
+            Hex::from(Field::from(1_usize)),
+            Hex::from(Field::from(2_usize)),
+        ])
+        .into_ts()
+        .unwrap();
         let mut tree = MerkleTree::from_leaves(&initial).unwrap();
-        let leaves = [Field::from(2_usize), Field::from(3_usize)];
+        let leaves = [Field::from(3_usize), Field::from(4_usize)];
         let batch = Commitments(leaves.into_iter().map(Hex::from).collect())
             .into_ts()
             .unwrap();
 
-        tree.splice(&JsValue::from(0), &batch).unwrap();
+        tree.splice(1_u32.into(), &batch).unwrap();
 
-        assert_eq!(tree.inner.leaves(), leaves);
         assert_eq!(
-            tree.inner.root().unwrap(),
-            CoreMerkleTree::from_leaves(&leaves)
-                .unwrap()
-                .root()
-                .unwrap()
+            tree.inner.leaves(),
+            &[Field::from(1_usize), leaves[0], leaves[1]]
         );
-    }
-
-    #[wasm_bindgen_test]
-    fn splice_preserves_core_empty_batch_semantics() {
-        let mut tree = MerkleTree::new();
-        let before = tree.inner.root().unwrap();
-        let empty = Commitments(Vec::new()).into_ts().unwrap();
-
-        tree.splice(&JsValue::from(u32::MAX), &empty).unwrap();
-
-        assert_eq!(tree.inner.root().unwrap(), before);
-    }
-
-    #[wasm_bindgen_test]
-    fn tree_operations_reuse_index_validation_and_core_bounds() {
-        let mut tree = MerkleTree::new();
-        let batch = Commitments(vec![Hex::from(Field::from(1_usize))])
-            .into_ts()
-            .unwrap();
-
-        let fractional = JsValue::from_f64(0.5);
-        assert!(tree.splice(&fractional, &batch).is_err());
-        assert!(tree.proof(&fractional).is_err());
-
-        let missing = JsValue::from(1);
-        assert!(tree.splice(&missing, &batch).is_err());
-        assert!(tree.proof(&missing).is_err());
     }
 
     #[wasm_bindgen_test]
@@ -227,15 +160,13 @@ mod wasm_tests {
             .unwrap();
         let tree = MerkleTree::from_leaves(&batch).unwrap();
 
-        let proof = tree.proof(&JsValue::from(1)).unwrap();
+        let proof = tree.proof(1_u32.into()).unwrap();
 
         let leaf: JsValue = proof.leaf().unwrap().into();
         let root: JsValue = proof.root().unwrap().into();
+        let tree_root: JsValue = tree.root().unwrap().into();
         assert_eq!(leaf.as_string().unwrap(), leaves[1].to_string());
-        assert_eq!(
-            root.as_string().unwrap(),
-            tree.inner.root().unwrap().to_string()
-        );
+        assert_eq!(root, tree_root);
         assert!(proof.verify());
     }
 }

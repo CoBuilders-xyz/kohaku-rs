@@ -51,43 +51,23 @@ correct chain and pool, check event order and contiguity, and handle removals or
 reorganizations. An inclusion proof is a hash path, not the zero-knowledge proof
 needed for withdrawal.
 
-## Node example
+## Usage
 
-Run from the repository root after generating the Node bindings using the
-[build instructions](../README.md#build). These fixed field values illustrate the
-local API without fetching logs or asserting that they represent real deposits.
+After loading the generated bindings as described in the
+[build instructions](../README.md#build), pass a nonempty caller-supplied
+`commitments` array to construct a tree and obtain a proof:
 
 ```js
-const assert = require('node:assert/strict');
-const { MerkleTree } = require(
-  './crates/target/tornadocash-wasm-node/kohaku_tornadocash_wasm.js',
-);
-
-const commitments = [1n, 2n, 3n].map(
-  value => `0x${value.toString(16).padStart(64, '0')}`,
-);
-const tree = MerkleTree.fromLeaves(commitments.slice(0, 2));
-let proof;
+const tree = MerkleTree.fromLeaves(commitments);
 try {
+  const proof = tree.proof(0);
   try {
-    proof = tree.proof(1);
-    assert.equal(proof.leaf, commitments[1]);
-    assert.equal(proof.root, tree.root());
-    assert.equal(proof.verify(), true);
-
-    // Replace leaf 1 and append leaf 2. The earlier proof keeps its root.
-    tree.splice(1, [commitments[2], commitments[0]]);
-    assert.notEqual(tree.root(), proof.root);
+    console.log(proof.leaf, proof.root, proof.verify());
   } finally {
-    tree.free();
+    proof.free();
   }
-
-  // The proof remains usable after its source tree is freed.
-  assert.equal(proof.verify(), true);
-  console.log('Captured leaf:', proof.leaf);
-  console.log('Captured root:', proof.root);
 } finally {
-  proof?.free();
+  tree.free();
 }
 ```
 
