@@ -42,13 +42,11 @@ Pool; mutating an input or returned object does not modify the core Pool.
 
 ## Node usage example
 
-Run from the repository root after building and generating Node bindings with
-the [crate's build commands](../README.md#build). No RPC service or secrets are
-required. This usage example constructs a pool, reads its metadata and frees the
-owned wrappers. Boundary and regression tests live in Rust beside the bindings.
+This snippet uses the Node bindings generated with the
+[crate's build commands](../README.md#build), with paths relative to the repository
+root. It constructs a pool, reads its metadata and frees the owned wrappers.
 
-```sh
-node <<'JS'
+```js
 const { Asset, Pool } = require(
   './crates/target/tornadocash-wasm-node/kohaku_tornadocash_wasm.js',
 );
@@ -73,7 +71,6 @@ try {
   pool?.free();
   asset.free(); // The constructor borrows the Asset; we still own it.
 }
-JS
 ```
 
 For browser bindings, initialize the generated web module with its default

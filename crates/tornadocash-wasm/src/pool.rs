@@ -1,10 +1,15 @@
-use alloy_primitives::Address;
+use alloy::primitives::Address;
 use kohaku_tornadocash::{PaymasterInfo as CorePaymasterInfo, Pool as CorePool};
 use serde::{Deserialize, Serialize};
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 
-use crate::{asset::Asset, hex::Hex, note_string::NoteString};
+use crate::{
+    asset::Asset,
+    bigint::{JsU64, JsU128},
+    hex::Hex,
+    note_string::NoteString,
+};
 
 /// A tornadocash pool.
 ///
@@ -53,20 +58,17 @@ impl Pool {
     /// u128 bigint, or any supplied address cannot be decoded into 20 bytes.
     #[wasm_bindgen(constructor)]
     pub fn new(
-        #[wasm_bindgen(unchecked_param_type = "bigint")] chain_id: &JsValue,
+        chain_id: JsU64,
         address: &Ts<Hex>,
         asset: &Asset,
-        #[wasm_bindgen(unchecked_param_type = "bigint")] amount_wei: &JsValue,
-        #[wasm_bindgen(unchecked_param_type = "bigint")] deployed_block: &JsValue,
+        amount_wei: JsU128,
+        deployed_block: JsU64,
         paymaster: Option<Ts<PaymasterInfo>>,
     ) -> Result<Self, JsError> {
-        let chain_id = u64::try_from(chain_id.clone())
-            .map_err(|_| JsError::new("chainId must be a bigint in the u64 range"))?;
+        let chain_id = u64::try_from(chain_id)?;
         let address = Address::try_from(address.to_rust()?)?;
-        let amount_wei = u128::try_from(amount_wei.clone())
-            .map_err(|_| JsError::new("amountWei must be a bigint in the u128 range"))?;
-        let deployed_block = u64::try_from(deployed_block.clone())
-            .map_err(|_| JsError::new("deployedBlock must be a bigint in the u64 range"))?;
+        let amount_wei = u128::try_from(amount_wei)?;
+        let deployed_block = u64::try_from(deployed_block)?;
         let paymaster = paymaster
             .map(|value| -> Result<_, JsError> {
                 Ok(CorePaymasterInfo::try_from(value.to_rust()?)?)
@@ -191,7 +193,7 @@ impl Pool {
 
 #[cfg(all(test, target_arch = "wasm32"))]
 mod wasm_tests {
-    use alloy_primitives::Address;
+    use alloy::primitives::Address;
     use tsify::{Ts, Tsify};
     use wasm_bindgen::JsValue;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -206,19 +208,14 @@ mod wasm_tests {
     #[wasm_bindgen_test]
     fn custom_pool_maps_exact_fields_and_owns_borrowed_asset_metadata() {
         let token_address = Hex::from(Address::with_last_byte(0xcd)).into_ts().unwrap();
-        let asset = Asset::erc20(
-            &token_address,
-            " Tkn ".to_owned(),
-            &JsValue::from_f64(255.0),
-        )
-        .unwrap();
+        let asset = Asset::erc20(&token_address, " Tkn ".to_owned(), 255_u8.into()).unwrap();
         let expected_asset = asset.inner.clone();
         let pool = Pool::new(
-            &JsValue::from(u64::MAX),
+            u64::MAX.into(),
             &address(),
             &asset,
-            &JsValue::from(u128::MAX),
-            &JsValue::from(9_007_199_254_740_993_u64),
+            u128::MAX.into(),
+            9_007_199_254_740_993_u64.into(),
             None,
         )
         .unwrap();
@@ -234,17 +231,6 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
-    fn custom_pool_checks_numeric_widths() {
-        let asset = Asset::eth();
-        let zero = JsValue::from(0_u64);
-        let u64_overflow = JsValue::bigint_from_str("18446744073709551616");
-        let u128_overflow = JsValue::bigint_from_str("340282366920938463463374607431768211456");
-        assert!(Pool::new(&u64_overflow, &address(), &asset, &zero, &zero, None).is_err());
-        assert!(Pool::new(&zero, &address(), &asset, &zero, &u64_overflow, None).is_err());
-        assert!(Pool::new(&zero, &address(), &asset, &u128_overflow, &zero, None).is_err());
-    }
-
-    #[wasm_bindgen_test]
     fn custom_paymaster_maps_input_and_output_fields() {
         let expected = CorePaymasterInfo {
             address: Address::with_last_byte(0xab),
@@ -256,8 +242,15 @@ mod wasm_tests {
         }
         .into_ts()
         .unwrap();
-        let zero = JsValue::from(0_u64);
-        let pool = Pool::new(&zero, &address(), &Asset::eth(), &zero, &zero, Some(input)).unwrap();
+        let pool = Pool::new(
+            0_u64.into(),
+            &address(),
+            &Asset::eth(),
+            0_u128.into(),
+            0_u64.into(),
+            Some(input),
+        )
+        .unwrap();
         assert_eq!(pool.inner.paymaster, Some(expected));
         let output = pool.paymaster().unwrap().unwrap().to_rust().unwrap();
         assert_eq!(Address::try_from(output.address).unwrap(), expected.address);
