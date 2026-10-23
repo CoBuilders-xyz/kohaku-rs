@@ -2,6 +2,8 @@
 
 mod asset;
 mod bigint;
+mod call;
+mod deposit;
 mod hex;
 mod merkle_proof;
 mod merkle_tree;
@@ -10,6 +12,7 @@ mod note_string;
 mod pool;
 
 pub use asset::Asset;
+pub use deposit::Deposit;
 pub use merkle_proof::MerkleProof;
 pub use merkle_tree::MerkleTree;
 pub use note::Note;

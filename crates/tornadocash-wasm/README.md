@@ -1,8 +1,8 @@
 # kohaku-tornadocash-wasm
 
 JavaScript/TypeScript bindings for `kohaku-tornadocash`. This crate houses the
-bindings for the core's public API, currently covering notes, assets, known pools
-and Merkle inclusion.
+bindings for the core's public API, currently covering notes, assets, known pools,
+deposit preparation and Merkle inclusion.
 The wrappers follow the Rust API; wasm-bindgen and tsify stay in this crate.
 
 ## Available bindings
@@ -195,6 +195,12 @@ try {
   token.free();
 }
 ```
+
+### Deposit preparation
+
+`Deposit` exposes `depositData()` and `approvalData()` to prepare plain `Call`
+objects from a `Pool` and `Note`. See the [deposit guide](docs/deposits.md) for the
+API, ownership and a short usage example.
 
 ### Merkle inclusion
 
