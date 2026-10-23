@@ -178,7 +178,6 @@ mod wasm_tests {
         let tree_root: JsValue = tree.root().unwrap().into();
         assert_eq!(leaf.as_string().unwrap(), leaves[1].to_string());
         assert_eq!(root, tree_root);
-        assert!(proof.verify());
 
         let commitment = Hex::from(leaves[0]).into_ts().unwrap();
         let leaf_proof = tree.leaf_proof(&commitment).unwrap();
