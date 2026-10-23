@@ -204,9 +204,8 @@ API, ownership and a short usage example.
 
 ### Event decoding
 
-`decodeEvent` decodes caller-supplied Tornado logs into plain deposit or withdrawal
-snapshots. See the [event guide](docs/events.md) for input validation, exact bigint
-values, caller responsibilities and a short usage example.
+`decodeEvent` decodes caller-supplied Tornado logs into deposit or withdrawal
+events. See the [event guide](docs/events.md) for a short usage example.
 
 ## Build
 
