@@ -34,7 +34,7 @@ impl MerkleTree {
     ///
     /// # Errors
     ///
-    /// Throws if any commitment is not an exact 32-byte canonical field element,
+    /// Throws if any commitment is not a valid BN254 field element,
     /// or if the core rejects the leaf count.
     #[wasm_bindgen(js_name = fromLeaves)]
     pub fn from_leaves(commitments: &Ts<Commitments>) -> Result<Self, JsError> {
