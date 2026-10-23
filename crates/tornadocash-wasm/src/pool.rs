@@ -52,6 +52,8 @@ impl From<CorePaymasterInfo> for PaymasterInfo {
 impl Pool {
     /// Construct an independently owned pool, borrowing and cloning the asset metadata.
     ///
+    /// The asset remains usable and can be freed independently of the pool.
+    ///
     /// # Errors
     ///
     /// Throws if `chainId`/`deployedBlock` are not u64 bigints, `amountWei` is not a
@@ -156,6 +158,8 @@ impl Pool {
     }
 
     /// Return plain paymaster metadata with checksummed addresses, or undefined.
+    ///
+    /// The returned JavaScript object requires no `free()` call.
     #[wasm_bindgen(getter)]
     pub fn paymaster(&self) -> Result<Option<Ts<PaymasterInfo>>, JsError> {
         self.inner
