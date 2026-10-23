@@ -80,6 +80,17 @@ impl MerkleTree {
         let index = u32::try_from(index)? as usize;
         Ok(self.inner.proof(index)?.into())
     }
+
+    /// Return an independently owned inclusion proof for a commitment.
+    ///
+    /// # Errors
+    ///
+    /// Throws if the commitment is invalid or is not found in the tree.
+    #[wasm_bindgen(js_name = leafProof)]
+    pub fn leaf_proof(&self, commitment: &Ts<Hex>) -> Result<MerkleProof, JsError> {
+        let leaf = Field::try_from(commitment.to_rust()?)?;
+        Ok(self.inner.leaf_proof(leaf)?.into())
+    }
 }
 
 fn decode_commitments(commitments: &Ts<Commitments>) -> Result<Vec<Field>, JsError> {
@@ -168,5 +179,10 @@ mod wasm_tests {
         assert_eq!(leaf.as_string().unwrap(), leaves[1].to_string());
         assert_eq!(root, tree_root);
         assert!(proof.verify());
+
+        let commitment = Hex::from(leaves[0]).into_ts().unwrap();
+        let leaf_proof = tree.leaf_proof(&commitment).unwrap();
+        let leaf: JsValue = leaf_proof.leaf().unwrap().into();
+        assert_eq!(leaf.as_string().unwrap(), leaves[0].to_string());
     }
 }
