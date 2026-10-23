@@ -56,9 +56,8 @@ pub enum DecodedEvent {
 
 /// Decode a supplied log using [`SyncEvent::try_from_log`].
 ///
-/// Returns a plain snapshot or undefined for any core no-result, including an
-/// unknown/undecodable event or absent block number. The caller selects the
-/// correct pool/chain and handles removals and reorgs.
+/// Returns the decoded event or undefined for any core no-result, including an
+/// unknown/undecodable event or absent block number.
 ///
 /// # Errors
 ///
