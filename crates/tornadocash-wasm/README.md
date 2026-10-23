@@ -205,8 +205,8 @@ API, ownership and a short usage example.
 ### Merkle inclusion
 
 `MerkleTree` builds and updates the canonical Tornado tree from ordered commitments;
-`MerkleProof` verifies local inclusion. See the [Merkle guide](docs/merkle.md) for the
-API, ownership, proof limitations and concise usage.
+`MerkleProof` verifies inclusion. See the [Merkle guide](docs/merkle.md) for a short
+usage example.
 
 ## Build
 

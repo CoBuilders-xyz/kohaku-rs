@@ -8,7 +8,7 @@ use crate::hex::Hex;
 ///
 /// See [`kohaku_tornadocash::merkle_tree::MerkleProof`] for the canonical proof type.
 ///
-/// Obtain this wrapper from `MerkleTree.proof()` and free it when finished.
+/// Free this wrapper when finished.
 /// Updating or freeing the source tree does not change this proof.
 #[wasm_bindgen]
 pub struct MerkleProof {
@@ -36,8 +36,6 @@ impl MerkleProof {
     }
 
     /// Verify inclusion against the captured root using the canonical Tornado hasher.
-    ///
-    /// This does not establish on-chain root acceptance or whether a note is unspent.
     #[must_use]
     pub fn verify(&self) -> bool {
         self.inner.verify::<TornadoHasher>()
