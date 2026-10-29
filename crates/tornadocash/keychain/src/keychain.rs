@@ -26,7 +26,10 @@ mod sol {
 }
 
 /// Keychain built on an alloy signer.
-pub struct Keychain<S: Signer + Send + Sync> {
+pub struct Keychain<
+    #[cfg(not(target_arch = "wasm32"))] S: Signer + Send + Sync,
+    #[cfg(target_arch = "wasm32")] S: Signer,
+> {
     signer: S,
 }
 
@@ -53,7 +56,11 @@ fn domain(chain_id: u64) -> Eip712Domain {
     }
 }
 
-impl<S: Signer + Send + Sync> Keychain<S> {
+impl<
+    #[cfg(not(target_arch = "wasm32"))] S: Signer + Send + Sync,
+    #[cfg(target_arch = "wasm32")] S: Signer,
+> Keychain<S>
+{
     pub fn new(signer: S) -> Self {
         Self { signer }
     }
