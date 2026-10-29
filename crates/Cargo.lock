@@ -4703,6 +4703,7 @@ dependencies = [
  "js-sys",
  "kohaku-tornadocash",
  "kohaku-tornadocash-relayer",
+ "kohaku-tornadocash-syncer",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
