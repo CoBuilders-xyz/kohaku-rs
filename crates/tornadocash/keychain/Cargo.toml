@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 alloy = { workspace = true, features = ["eip712"] }
 kohaku-tornadocash = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
 [build-dependencies]

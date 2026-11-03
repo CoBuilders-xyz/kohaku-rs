@@ -4626,6 +4626,7 @@ dependencies = [
  "alloy",
  "cfg_aliases",
  "kohaku-tornadocash",
+ "serde",
  "thiserror 2.0.20",
  "tokio",
 ]
