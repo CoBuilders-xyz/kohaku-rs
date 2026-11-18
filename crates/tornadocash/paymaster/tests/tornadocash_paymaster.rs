@@ -12,7 +12,7 @@ use kohaku_fork_kit::{
     simple_account::deploy_simple_account,
 };
 use kohaku_tornadocash::{
-    Deposit, Withdrawal,
+    Asset, Deposit, Pool, Withdrawal,
     merkle_tree::{MerkleTree, MerkleTreeExt},
 };
 use kohaku_tornadocash_paymaster::UserOperationPaymasterExt;
@@ -51,7 +51,14 @@ async fn test_tornadocash_paymaster() -> Result<(), anyhow::Error> {
     let entrypoint = deploy_entry_point(&provider).await?;
     deploy_simple_account(&provider).await?;
 
-    let mut pool = deploy_pool(provider.clone(), None).await?;
+    let mut pool = Pool::new(
+        provider.get_chain_id().await?,
+        deploy_pool(provider.clone(), 10_u128.pow(17)).await?,
+        Asset::ETH,
+        10_u128.pow(17),
+        0,
+        None,
+    );
     let paymaster_address = deploy_paymaster(
         provider.clone(),
         entrypoint,
@@ -149,7 +156,14 @@ async fn test_tornadocash_paymaster_flashcall() -> Result<(), anyhow::Error> {
     let entrypoint = deploy_entry_point(&provider).await?;
     deploy_simple_account(&provider).await?;
 
-    let mut pool = deploy_pool(provider.clone(), None).await?;
+    let mut pool = Pool::new(
+        provider.get_chain_id().await?,
+        deploy_pool(provider.clone(), 10_u128.pow(17)).await?,
+        Asset::ETH,
+        10_u128.pow(17),
+        0,
+        None,
+    );
     let paymaster_address = deploy_paymaster(
         provider.clone(),
         entrypoint,
