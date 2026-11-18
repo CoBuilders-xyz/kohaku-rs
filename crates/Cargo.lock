@@ -82,7 +82,6 @@ dependencies = [
  "alloy-core",
  "alloy-eips",
  "alloy-ens",
- "alloy-genesis",
  "alloy-json-rpc",
  "alloy-network",
  "alloy-node-bindings",
@@ -307,9 +306,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-serde",
  "alloy-trie",
- "borsh",
  "serde",
- "serde_with",
 ]
 
 [[package]]
@@ -4651,6 +4648,7 @@ dependencies = [
  "insta",
  "kohaku-fork-kit",
  "kohaku-tornadocash",
+ "kohaku-tornadocash-provider",
  "kohaku-tornadocash-syncer",
  "kohaku-userop-kit",
  "rand 0.10.2",
@@ -4658,6 +4656,14 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "kohaku-tornadocash-provider"
+version = "0.0.1"
+dependencies = [
+ "alloy",
+ "kohaku-tornadocash",
 ]
 
 [[package]]
@@ -4670,6 +4676,7 @@ dependencies = [
  "insta",
  "kohaku-fork-kit",
  "kohaku-tornadocash",
+ "kohaku-tornadocash-provider",
  "kohaku-tornadocash-syncer",
  "rand 0.10.2",
  "reqwest 0.13.4",
@@ -4714,6 +4721,7 @@ dependencies = [
  "hex",
  "js-sys",
  "kohaku-tornadocash",
+ "kohaku-tornadocash-provider",
  "kohaku-tornadocash-relayer",
  "kohaku-tornadocash-syncer",
  "rand 0.10.2",
