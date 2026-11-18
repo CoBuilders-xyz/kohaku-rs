@@ -9,13 +9,7 @@ use crate::{bigint::JsU64, events::DecodedEvent, pool::Pool};
 /// See [`kohaku_tornadocash::event::Snapshot`] for more details.
 #[wasm_bindgen]
 pub struct Snapshot {
-    inner: CoreSnapshot,
-}
-
-impl From<CoreSnapshot> for Snapshot {
-    fn from(inner: CoreSnapshot) -> Self {
-        Self { inner }
-    }
+    pub(crate) inner: CoreSnapshot,
 }
 
 #[wasm_bindgen]
@@ -24,9 +18,7 @@ impl Snapshot {
     #[wasm_bindgen(getter)]
     #[must_use]
     pub fn pool(&self) -> Pool {
-        Pool {
-            inner: self.inner.pool().clone(),
-        }
+        self.inner.pool().clone().into()
     }
 
     /// Return the inclusive start of the actual covered range as an exact bigint.
@@ -55,5 +47,11 @@ impl Snapshot {
             .cloned()
             .map(|event| Ok(DecodedEvent::from(event).into_ts()?))
             .collect()
+    }
+}
+
+impl From<CoreSnapshot> for Snapshot {
+    fn from(inner: CoreSnapshot) -> Self {
+        Self { inner }
     }
 }

@@ -18,7 +18,7 @@ use crate::{
 /// See [`kohaku_tornadocash_relayer::RelayerStatus`] for more details.
 #[wasm_bindgen]
 pub struct RelayerStatus {
-    inner: CoreRelayerStatus,
+    pub(crate) inner: CoreRelayerStatus,
 }
 
 /// A snapshot of the pool instances supported for one asset.
@@ -162,11 +162,10 @@ impl RelayerStatus {
         #[wasm_bindgen(js_name = gasPrice)] gas_price: JsU128,
         refund: JsU256,
     ) -> Result<Payer, JsError> {
-        Ok(Payer {
-            inner: self
-                .inner
-                .quote(&pool.inner, gas_price.try_into()?, refund.try_into()?)?,
-        })
+        Ok(self
+            .inner
+            .quote(&pool.inner, gas_price.try_into()?, refund.try_into()?)?
+            .into())
     }
 }
 
