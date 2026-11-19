@@ -3,6 +3,7 @@
 mod asset;
 mod bigint;
 mod call;
+mod circuit_artifacts;
 mod deposit;
 mod events;
 mod hex;
@@ -20,6 +21,7 @@ mod snapshot;
 mod withdrawal;
 
 pub use asset::Asset;
+pub use circuit_artifacts::CircuitArtifacts;
 pub use deposit::Deposit;
 pub use events::{DecodedEvent, LogInput, decode_event};
 pub use merkle_proof::MerkleProof;

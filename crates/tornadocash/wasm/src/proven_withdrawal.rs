@@ -42,7 +42,7 @@ mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use super::*;
-    use crate::{MerkleProof, Note, Payer, Pool, Withdrawal};
+    use crate::{MerkleProof, Note, Payer, Pool, Withdrawal, circuit_artifacts};
 
     #[wasm_bindgen_test]
     fn proves_in_wasm_with_system_entropy() {
@@ -62,6 +62,8 @@ mod tests {
         )
         .unwrap();
         withdrawal.with_payer(&payer);
-        withdrawal.prove(&proof).unwrap();
+        withdrawal
+            .prove(&proof, &circuit_artifacts::test_utils::artifacts())
+            .unwrap();
     }
 }

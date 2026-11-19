@@ -4542,6 +4542,8 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "anyhow",
+ "brotli",
+ "kohaku-tornadocash-circuit",
  "kohaku-userop-kit",
  "reqwest 0.13.4",
  "tokio",
@@ -4647,6 +4649,7 @@ dependencies = [
  "insta",
  "kohaku-fork-kit",
  "kohaku-tornadocash",
+ "kohaku-tornadocash-circuit",
  "kohaku-tornadocash-provider",
  "kohaku-tornadocash-syncer",
  "kohaku-userop-kit",
@@ -4675,6 +4678,7 @@ dependencies = [
  "insta",
  "kohaku-fork-kit",
  "kohaku-tornadocash",
+ "kohaku-tornadocash-circuit",
  "kohaku-tornadocash-provider",
  "kohaku-tornadocash-syncer",
  "rand 0.10.2",
@@ -4714,11 +4718,13 @@ name = "kohaku-tornadocash-wasm"
 version = "0.0.2"
 dependencies = [
  "alloy",
+ "brotli",
  "getrandom 0.2.17",
  "getrandom 0.4.3",
  "hex",
  "js-sys",
  "kohaku-tornadocash",
+ "kohaku-tornadocash-circuit",
  "kohaku-tornadocash-provider",
  "kohaku-tornadocash-relayer",
  "kohaku-tornadocash-syncer",

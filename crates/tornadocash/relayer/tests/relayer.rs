@@ -5,6 +5,7 @@ use alloy::{
     signers::local::PrivateKeySigner,
 };
 use kohaku_fork_kit::{
+    artifacts::tornado_artifacts,
     pool::{deploy_pool, deploy_proxy},
     relayer::{RelayerBuilder, RelayerPool},
 };
@@ -86,7 +87,7 @@ async fn test_relayer_withdraw() -> Result<(), anyhow::Error> {
     let merkle_proof = tree.note_proof(&note)?;
     let withdrawal = Withdrawal::new(&pool, note, recipient)
         .with_payer(payer)
-        .prove(&merkle_proof, &mut rand::rng())?;
+        .prove(&merkle_proof, tornado_artifacts(), &mut rand::rng())?;
 
     let receipt = relayer.withdraw(withdrawal).await?;
     let tx_hash = relayer

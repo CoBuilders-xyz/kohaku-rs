@@ -3,7 +3,7 @@ use alloy::{
     providers::{Provider, ProviderBuilder},
     signers::local::PrivateKeySigner,
 };
-use kohaku_fork_kit::pool::deploy_pool;
+use kohaku_fork_kit::{artifacts::tornado_artifacts, pool::deploy_pool};
 use kohaku_tornadocash::{
     Asset, Deposit, Pool, Withdrawal,
     merkle_tree::{MerkleTree, MerkleTreeExt},
@@ -86,8 +86,11 @@ async fn test_withdraw() -> Result<(), anyhow::Error> {
     // Withdraw the note
     let recipient: Address = PrivateKeySigner::random().address();
     let merkle_proof = tree.note_proof(&note)?;
-    let withdrawal =
-        Withdrawal::new(&pool, note, recipient).prove(&merkle_proof, &mut rand::rng())?;
+    let withdrawal = Withdrawal::new(&pool, note, recipient).prove(
+        &merkle_proof,
+        tornado_artifacts(),
+        &mut rand::rng(),
+    )?;
     provider
         .send_transaction(withdrawal.call().into())
         .await?

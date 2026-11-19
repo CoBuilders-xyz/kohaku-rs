@@ -6,6 +6,7 @@ use alloy::{
 };
 use kohaku_fork_kit::{
     alto::AltoBuilder,
+    artifacts::tornado_artifacts,
     entry_point::deploy_entry_point,
     paymaster::{allow_instance, deploy_paymaster},
     pool::deploy_pool,
@@ -115,6 +116,7 @@ async fn test_tornadocash_paymaster() -> Result<(), anyhow::Error> {
         .with_tornado_paymaster(
             withdrawal,
             &withdrawal_merkle_proof,
+            tornado_artifacts(),
             &provider,
             &*alto,
             &mut rand::rng(),
@@ -224,6 +226,7 @@ async fn test_tornadocash_paymaster_flashcall() -> Result<(), anyhow::Error> {
         .with_tornado_paymaster(
             withdrawal,
             &withdrawal_merkle_proof,
+            tornado_artifacts(),
             &provider,
             &*alto,
             &mut rand::rng(),

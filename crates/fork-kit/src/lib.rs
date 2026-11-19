@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 pub mod alto;
+pub mod artifacts;
 pub mod entry_point;
 pub mod paymaster;
 pub mod pool;
