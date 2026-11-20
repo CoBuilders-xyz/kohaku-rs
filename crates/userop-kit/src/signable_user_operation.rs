@@ -88,6 +88,19 @@ impl SignableUserOperation {
         })
     }
 
+    /// Attaches an external owner's signature while preserving this signable operation.
+    ///
+    /// # Errors
+    /// Returns an error if signature recovery fails, the owner differs, or a
+    /// delegation authorization remains unsigned.
+    pub fn with_owner_signature(
+        &self,
+        owner: Address,
+        signature: Signature,
+    ) -> anyhow::Result<SignedUserOperation> {
+        self.clone().with_signature(owner, signature)
+    }
+
     /// Returns the total gas limit for this UserOperation, including paymaster gas limits if
     /// applicable.
     pub fn total_gas_limit(&self) -> u128 {

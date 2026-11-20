@@ -23,13 +23,14 @@ Kohaku-rs is a collection of rust crates for working with Ethereum privacy proto
 - [`kohaku-merkle-tree`](./crates/merkle-tree/) - Generic merkle tree implementation.
 - [`kohaku-fork-kit`](./crates/fork-kit/) - Forking kit for testing and development of kohaku-rs crates.
 - [`kohaku-tor-rpc`](./crates/tor-rpc/) - Alloy JSON-RPC over Arti, with shared or session-isolated circuits.
+- [`poseidon-rust`](./crates/poseidon-rust/) - Circom-compatible Poseidon hash (vendored).
 
 ### Experiments
 
 Experiments are incomplete and unstable features that are not ready for production use. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for more information.
 
 - [`kohaku-privacy-rpc`](https://github.com/ethereum/kohaku-rs/tree/experiments/pir-v1/crates/privacy-rpc) - dual-endpoint Ethereum provider: PIR for private account reads, fallback JSON-RPC for everything else. Can also enable Tor for network level anonymity.
-- [`kohaku-railgun`](https://github.com/ethereum/kohaku-rs/tree/feat/kohaku-railgun) - [Railgun](https://docs.railgun.org/wiki) privacy protocol client library.
+- [`kohaku-railgun`](./crates/railgun/core/) - [Railgun](https://docs.railgun.org/wiki) privacy protocol client library.
 - [`tint`](https://github.com/Robert-MacWha/tint) - Experimental immutable privacy protocol targeting Hegota.
 - [`msp`](https://github.com/soispoke/minimal-shielded-pool) - Experimental immutable & permissionless privacy protocol targeting Hegota.
 

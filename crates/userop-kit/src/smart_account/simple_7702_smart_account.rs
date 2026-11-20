@@ -26,6 +26,7 @@ pub struct Simple7702SmartAccount<P: Provider> {
     chain_id: u64,
     provider: P,
 
+    allow_used: bool,
     implementation: Address,
     entry_point: Address,
     domain: Eip712Domain,
@@ -45,6 +46,12 @@ pub struct Call {
 }
 
 impl<P: Provider> Simple7702SmartAccount<P> {
+    /// Explicitly permits a deployed, delegated, funded, or previously used sender.
+    pub fn allow_used(mut self, allow_used: bool) -> Self {
+        self.allow_used = allow_used;
+        self
+    }
+
     /// Creates a Simple7702 account with the v0.8 EntryPoint.
     pub fn new(provider: P, owner: Address, chain_id: u64) -> Self {
         let implementation = address!("0xe6Cae83BdE06E4c305530e199D7217f42808555B");
@@ -55,6 +62,7 @@ impl<P: Provider> Simple7702SmartAccount<P> {
             owner,
             chain_id,
             provider,
+            allow_used: false,
             implementation,
             entry_point,
             domain,
@@ -65,9 +73,17 @@ impl<P: Provider> Simple7702SmartAccount<P> {
     ///
     /// The implementation must support Simple7702Account's v0.8 EIP-712
     /// signature validation and atomic execution ABI.
-    pub fn with_implementation(mut self, implementation: Address) -> Self {
+    pub fn with_implementation(
+        mut self,
+        implementation: Address,
+    ) -> Result<Self, SmartAccountError> {
+        if implementation.is_zero() {
+            return Err(SmartAccountError::Other(anyhow::anyhow!(
+                "Delegation implementation cannot be zero"
+            )));
+        }
         self.implementation = implementation;
-        self
+        Ok(self)
     }
 }
 
@@ -86,6 +102,16 @@ impl<P: Provider> SmartAccount for Simple7702SmartAccount<P> {
 
     fn address(&self) -> Address {
         self.owner
+    }
+
+    async fn validate_sender(&self) -> Result<(), SmartAccountError> {
+        super::validate_unused_sender(
+            &self.provider,
+            self.address(),
+            self.entry_point(),
+            self.allow_used,
+        )
+        .await
     }
 
     async fn nonce(&self) -> Result<U256, SmartAccountError> {
@@ -178,7 +204,8 @@ mod tests {
         let provider = ProviderBuilder::new().connect_mocked_client(mock.clone());
         let implementation = Address::repeat_byte(0x77);
         let account = Simple7702SmartAccount::new(provider, Address::repeat_byte(0x44), 1)
-            .with_implementation(implementation);
+            .with_implementation(implementation)
+            .unwrap();
         mock.push_success(&"0x9");
 
         let AccountInit::Eip7702(auth) = account.init().await.unwrap() else {
@@ -193,7 +220,8 @@ mod tests {
     async fn builder_keeps_entrypoint_and_authorization_nonces_separate() {
         let mock = Asserter::new();
         let provider = ProviderBuilder::new().connect_mocked_client(mock.clone());
-        let account = Simple7702SmartAccount::new(provider, Address::repeat_byte(0x44), 1);
+        let account =
+            Simple7702SmartAccount::new(provider, Address::repeat_byte(0x44), 1).allow_used(true);
         mock.push_success(&Bytes::from(U256::from(7).abi_encode()));
         mock.push_success(&"0x9");
 
