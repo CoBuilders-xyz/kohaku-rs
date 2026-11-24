@@ -1,9 +1,12 @@
-use kohaku_tornadocash::{Field, merkle_tree::MerkleTree as CoreMerkleTree};
+use kohaku_tornadocash::{
+    Field,
+    merkle_tree::{MerkleTree as CoreMerkleTree, MerkleTreeExt},
+};
 use serde::{Deserialize, Serialize};
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 
-use crate::{bigint::JsU32, hex::Hex, merkle_proof::MerkleProof};
+use crate::{bigint::JsU32, hex::Hex, merkle_proof::MerkleProof, snapshot::Snapshot};
 
 /// An ordered JavaScript array of commitment hex strings, with no WASM ownership.
 #[derive(Serialize, Deserialize, Tsify)]
@@ -62,6 +65,18 @@ impl MerkleTree {
         let start_index = u32::try_from(start_index)? as usize;
         let leaves = decode_commitments(commitments)?;
         self.inner.splice(start_index, &leaves)?;
+        Ok(())
+    }
+
+    /// Apply a snapshot's deposits through the core's [`MerkleTreeExt::splice_events`].
+    ///
+    /// The snapshot remains usable after this call.
+    ///
+    /// # Errors
+    /// Throws if the core rejects the splice bounds or capacity.
+    #[wasm_bindgen(js_name = spliceEvents)]
+    pub fn splice_events(&mut self, snapshot: &Snapshot) -> Result<(), JsError> {
+        self.inner.splice_events(&snapshot.inner)?;
         Ok(())
     }
 
