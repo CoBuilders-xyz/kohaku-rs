@@ -14,6 +14,28 @@ pub struct ProvenWithdrawal {
 
 #[wasm_bindgen]
 impl ProvenWithdrawal {
+    /// Serialize this proven withdrawal, including its note secrets, as a JSON string.
+    ///
+    /// The format is unspecified; only `fromJSON` from the same package version reads it.
+    ///
+    /// # Errors
+    /// Throws if the proven withdrawal cannot be serialized.
+    #[wasm_bindgen(js_name = toJSON)]
+    pub fn to_json(&self) -> Result<String, JsError> {
+        Ok(serde_json::to_string(&self.inner)?)
+    }
+
+    /// Parse a proven withdrawal from the output of `toJSON`.
+    ///
+    /// # Errors
+    /// Throws if `json` is not a serialized proven withdrawal.
+    #[wasm_bindgen(js_name = fromJSON)]
+    pub fn from_json(json: &str) -> Result<Self, JsError> {
+        Ok(Self {
+            inner: serde_json::from_str(json)?,
+        })
+    }
+
     /// Return the core's unsigned withdrawal call as plain JavaScript data.
     pub fn data(&self) -> Result<Ts<Call>, JsError> {
         Ok(Call::from(self.inner.call()).into_ts()?)
