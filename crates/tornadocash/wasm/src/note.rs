@@ -1,4 +1,8 @@
 use kohaku_tornadocash::{Note as CoreNote, Nullifier, Secret};
+use rand::{
+    RngExt, SeedableRng,
+    rngs::{StdRng, SysRng},
+};
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
 
@@ -14,6 +18,16 @@ pub struct Note {
 
 #[wasm_bindgen]
 impl Note {
+    /// Generate a note using secure runtime randomness and the core distribution.
+    ///
+    /// # Errors
+    ///
+    /// Throws if system entropy is unavailable.
+    pub fn random() -> Result<Note, JsError> {
+        let mut rng = StdRng::try_from_rng(&mut SysRng).map_err(JsError::from)?;
+        Ok(rng.random::<CoreNote>().into())
+    }
+
     /// Construct a note from two 31-byte, 0x-prefixed hex strings.
     ///
     /// # Errors
