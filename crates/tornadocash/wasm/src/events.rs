@@ -2,7 +2,7 @@ use alloy::{
     primitives::{Address, B256},
     rpc::types::Log,
 };
-use kohaku_tornadocash::event::{LogDecodeError, SyncEvent};
+use kohaku_tornadocash::event::{DepositEvent, LogDecodeError, SyncEvent, WithdrawalEvent};
 use serde::{Deserialize, Serialize};
 use tsify::{Ts, Tsify};
 use wasm_bindgen::prelude::*;
@@ -25,7 +25,7 @@ pub struct LogInput {
 }
 
 /// A plain JavaScript snapshot of [`SyncEvent`].
-#[derive(Serialize, Tsify)]
+#[derive(Serialize, Deserialize, Tsify)]
 #[serde(
     tag = "kind",
     rename_all = "camelCase",
@@ -91,6 +91,37 @@ impl From<SyncEvent> for DecodedEvent {
                 block_number: event.block_number.into(),
             },
         }
+    }
+}
+
+impl TryFrom<DecodedEvent> for SyncEvent {
+    type Error = JsError;
+
+    fn try_from(event: DecodedEvent) -> Result<Self, Self::Error> {
+        Ok(match event {
+            DecodedEvent::Deposit {
+                commitment,
+                leaf_index,
+                block_number,
+            } => Self::Deposit(DepositEvent {
+                commitment: commitment.try_into()?,
+                leaf_index: leaf_index.try_into()?,
+                block_number: block_number.try_into()?,
+            }),
+            DecodedEvent::Withdrawal {
+                to,
+                nullifier_hash,
+                relayer,
+                fee,
+                block_number,
+            } => Self::Withdrawal(WithdrawalEvent {
+                to: to.try_into()?,
+                nullifier_hash: nullifier_hash.try_into()?,
+                relayer: relayer.try_into()?,
+                fee: fee.try_into()?,
+                block_number: block_number.try_into()?,
+            }),
+        })
     }
 }
 
