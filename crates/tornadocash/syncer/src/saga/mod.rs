@@ -132,6 +132,7 @@ impl SagaSyncer {
             .get(self.manifest_url())
             .send()
             .await?
+            .error_for_status()?
             .bytes()
             .await?;
         Ok(serde_json::from_slice(&bytes)?)
@@ -143,6 +144,7 @@ impl SagaSyncer {
             .get(self.chunk_url(file))
             .send()
             .await?
+            .error_for_status()?
             .bytes()
             .await?;
         Ok(bytes.to_vec())
