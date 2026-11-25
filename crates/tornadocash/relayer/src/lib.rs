@@ -208,13 +208,15 @@ impl Relayer {
     /// Polls until `receipt`'s withdrawal has landed on-chain.
     ///
     /// Returns the transaction hash or `None` if one was not supplied by the relayer.
-    #[cfg(native)]
     pub async fn await_confirmation(
         &self,
         provider: &impl Provider,
         receipt: &JobReceipt,
     ) -> Result<Option<TxHash>, RelayerError> {
+        #[cfg(native)]
         let start = std::time::Instant::now();
+        #[cfg(wasm)]
+        let start = web_time::Instant::now();
         let mut last_status;
 
         loop {
@@ -233,7 +235,10 @@ impl Relayer {
                 });
             }
 
+            #[cfg(native)]
             tokio::time::sleep(self.poll_interval).await;
+            #[cfg(wasm)]
+            sleep(self.poll_interval).await;
         }
     }
 
@@ -253,4 +258,15 @@ impl Relayer {
             .await?;
         Ok(response)
     }
+}
+
+#[cfg(wasm)]
+async fn sleep(mut duration: Duration) {
+    // JavaScript timer delays are signed 32-bit milliseconds.
+    let max_delay = Duration::from_millis(i32::MAX as u64);
+    while duration > max_delay {
+        gloo_timers::future::sleep(max_delay).await;
+        duration -= max_delay;
+    }
+    gloo_timers::future::sleep(duration).await;
 }

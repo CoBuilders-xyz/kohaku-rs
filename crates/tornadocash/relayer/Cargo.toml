@@ -31,6 +31,10 @@ tokio = { workspace = true, features = ["rt", "time"] }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+gloo-timers = { workspace = true, features = ["futures"] }
+web-time = { workspace = true }
+
 [build-dependencies]
 cfg_aliases = { workspace = true }
 

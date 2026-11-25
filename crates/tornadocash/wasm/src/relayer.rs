@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, time::Duration};
 
 use js_sys::Promise;
 use kohaku_tornadocash_relayer::Relayer as CoreRelayer;
@@ -19,11 +19,21 @@ pub struct Relayer {
 #[wasm_bindgen]
 impl Relayer {
     #[wasm_bindgen(constructor)]
-    #[must_use]
-    pub fn new(url: &str) -> Self {
-        Self {
-            inner: Rc::new(CoreRelayer::new(url)),
+    pub fn new(
+        url: &str,
+        #[wasm_bindgen(js_name = timeoutMs)] timeout_ms: Option<crate::bigint::JsU64>,
+        #[wasm_bindgen(js_name = pollIntervalMs)] poll_interval_ms: Option<crate::bigint::JsU64>,
+    ) -> Result<Self, JsError> {
+        let mut client = CoreRelayer::new(url);
+        if let Some(ms) = timeout_ms {
+            client = client.with_timeout(Duration::from_millis(ms.try_into()?));
         }
+        if let Some(ms) = poll_interval_ms {
+            client = client.with_poll_interval(Duration::from_millis(ms.try_into()?));
+        }
+        Ok(Self {
+            inner: Rc::new(client),
+        })
     }
 
     /// Fetch the relayer's current status.
